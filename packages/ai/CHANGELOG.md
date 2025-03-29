@@ -1,5 +1,117 @@
 # ai
 
+## 4.2.8
+
+### Patch Changes
+
+- 65243ce: fix (ui): introduce step start parts
+- Updated dependencies [65243ce]
+  - @ai-sdk/ui-utils@1.2.2
+  - @ai-sdk/react@1.2.3
+
+## 4.2.7
+
+### Patch Changes
+
+- e14c066: fix (ai/core): convert user ui messages with only parts (no content) to core messages
+
+## 4.2.6
+
+### Patch Changes
+
+- 625591b: feat (ai/core): auto-complete for provider registry
+- 6a1506f: feat (ai/core): custom separator support for provider registry
+- ea3d998: chore (ai/core): move provider registry to stable
+
+## 4.2.5
+
+### Patch Changes
+
+- Updated dependencies [d92fa29]
+  - @ai-sdk/react@1.2.2
+
+## 4.2.4
+
+### Patch Changes
+
+- 3d6d96d: fix (ai/core): validate that messages are not empty
+
+## 4.2.3
+
+### Patch Changes
+
+- 0b3bf29: fix (ai/core): custom env support for stdio MCP transport
+
+## 4.2.2
+
+### Patch Changes
+
+- f10f0fa: fix (provider-utils): improve event source stream parsing performance
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/react@1.2.1
+  - @ai-sdk/ui-utils@1.2.1
+
+## 4.2.1
+
+### Patch Changes
+
+- b796152: feat (ai/core): add headers to MCP SSE transport
+- 06361d6: feat (ai/core): expose JSON RPC types (MCP)
+
+## 4.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+  - @ai-sdk/react@1.2.0
+  - @ai-sdk/ui-utils@1.2.0
+
+## 4.1.66
+
+### Patch Changes
+
+- 5d0fc29: chore (ai): improve cosine similarity calculation
+
+## 4.1.65
+
+### Patch Changes
+
+- 16c444f: fix (ai): expose ai/mcp-stdio
+
+## 4.1.64
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/react@1.1.25
+  - @ai-sdk/ui-utils@1.1.21
+
+## 4.1.63
+
+### Patch Changes
+
+- 0bd5bc6: feat (ai): support model-generated files
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/provider-utils@2.1.14
+  - @ai-sdk/ui-utils@1.1.20
+  - @ai-sdk/react@1.1.24
+
+## 4.1.62
+
+### Patch Changes
+
+- c9ed3c4: feat: enable custom mcp transports
+  breaking change: remove internal stdio transport creation
+
 ## 4.1.61
 
 ### Patch Changes
