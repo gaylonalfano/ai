@@ -1,5 +1,81 @@
 # @ai-sdk/deepseek
 
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/openai-compatible@0.2.6
+
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [d186cca]
+  - @ai-sdk/openai-compatible@0.2.5
+
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/openai-compatible@0.2.4
+
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+  - @ai-sdk/openai-compatible@0.2.3
+
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [a6b55cc]
+  - @ai-sdk/openai-compatible@0.2.2
+
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/openai-compatible@0.2.1
+
+## 0.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/openai-compatible@0.2.0
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/openai-compatible@0.1.17
+
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/openai-compatible@0.1.16
+  - @ai-sdk/provider-utils@2.1.14
+
 ## 0.1.15
 
 ### Patch Changes

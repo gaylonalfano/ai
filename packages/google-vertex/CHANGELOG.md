@@ -1,5 +1,117 @@
 # @ai-sdk/google-vertex
 
+## 2.2.10
+
+### Patch Changes
+
+- 1789884: feat: add provider option schemas for vertex imagegen and google genai
+- Updated dependencies [1789884]
+  - @ai-sdk/google@1.2.7
+
+## 2.2.9
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/anthropic@1.2.6
+  - @ai-sdk/google@1.2.6
+
+## 2.2.8
+
+### Patch Changes
+
+- 292f543: fix (provider/google-vertex): fix anthropic support for image urls in messages
+- Updated dependencies [292f543]
+  - @ai-sdk/anthropic@1.2.5
+
+## 2.2.7
+
+### Patch Changes
+
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/anthropic@1.2.4
+  - @ai-sdk/google@1.2.5
+
+## 2.2.6
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+  - @ai-sdk/anthropic@1.2.3
+  - @ai-sdk/google@1.2.4
+
+## 2.2.5
+
+### Patch Changes
+
+- 9507f7e: fix (provider/google-vertex): pass through auth options for vertex provider
+
+## 2.2.4
+
+### Patch Changes
+
+- Updated dependencies [aeaa92b]
+  - @ai-sdk/anthropic@1.2.2
+
+## 2.2.3
+
+### Patch Changes
+
+- Updated dependencies [871df87]
+  - @ai-sdk/google@1.2.3
+
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/anthropic@1.2.1
+  - @ai-sdk/google@1.2.2
+
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [994a13b]
+  - @ai-sdk/google@1.2.1
+
+## 2.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/anthropic@1.2.0
+  - @ai-sdk/google@1.2.0
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+
+## 2.1.31
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/google@1.1.27
+  - @ai-sdk/anthropic@1.1.19
+
+## 2.1.30
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/google@1.1.26
+  - @ai-sdk/anthropic@1.1.18
+  - @ai-sdk/provider-utils@2.1.14
+
 ## 2.1.29
 
 ### Patch Changes

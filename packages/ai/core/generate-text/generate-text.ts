@@ -26,6 +26,7 @@ import {
 } from '../types/usage';
 import { removeTextAfterLastWhitespace } from '../util/remove-text-after-last-whitespace';
 import { GenerateTextResult } from './generate-text-result';
+import { DefaultGeneratedFile, GeneratedFile } from './generated-file';
 import { Output } from './output';
 import { parseToolCall } from './parse-tool-call';
 import { asReasoningText, ReasoningDetail } from './reasoning-detail';
@@ -497,6 +498,7 @@ A function that attempts to repair a tool call that failed to parse.
           responseMessages.push(
             ...toResponseMessages({
               text,
+              files: asFiles(currentModelResponse.files),
               reasoning: asReasoningDetails(currentModelResponse.reasoning),
               tools: tools ?? ({} as TOOLS),
               toolCalls: currentToolCalls,
@@ -514,6 +516,7 @@ A function that attempts to repair a tool call that failed to parse.
           // TODO v5: rename reasoning to reasoningText (and use reasoning for composite array)
           reasoning: asReasoningText(currentReasoningDetails),
           reasoningDetails: currentReasoningDetails,
+          files: asFiles(currentModelResponse.files),
           sources: currentModelResponse.sources ?? [],
           toolCalls: currentToolCalls,
           toolResults: currentToolResults,
@@ -562,6 +565,7 @@ A function that attempts to repair a tool call that failed to parse.
 
       return new DefaultGenerateTextResult({
         text,
+        files: asFiles(currentModelResponse.files),
         reasoning: asReasoningText(currentReasoningDetails),
         reasoningDetails: currentReasoningDetails,
         sources,
@@ -572,7 +576,11 @@ A function that attempts to repair a tool call that failed to parse.
 
           return output.parseOutput(
             { text },
-            { response: currentModelResponse.response, usage },
+            {
+              response: currentModelResponse.response,
+              usage,
+              finishReason: currentModelResponse.finishReason,
+            },
           );
         },
         toolCalls: currentToolCalls,
@@ -692,6 +700,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
   implements GenerateTextResult<TOOLS, OUTPUT>
 {
   readonly text: GenerateTextResult<TOOLS, OUTPUT>['text'];
+  readonly files: GenerateTextResult<TOOLS, OUTPUT>['files'];
   readonly reasoning: GenerateTextResult<TOOLS, OUTPUT>['reasoning'];
   readonly reasoningDetails: GenerateTextResult<
     TOOLS,
@@ -723,6 +732,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
 
   constructor(options: {
     text: GenerateTextResult<TOOLS, OUTPUT>['text'];
+    files: GenerateTextResult<TOOLS, OUTPUT>['files'];
     reasoning: GenerateTextResult<TOOLS, OUTPUT>['reasoning'];
     reasoningDetails: GenerateTextResult<TOOLS, OUTPUT>['reasoningDetails'];
     toolCalls: GenerateTextResult<TOOLS, OUTPUT>['toolCalls'];
@@ -742,6 +752,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
     sources: GenerateTextResult<TOOLS, OUTPUT>['sources'];
   }) {
     this.text = options.text;
+    this.files = options.files;
     this.reasoning = options.reasoning;
     this.reasoningDetails = options.reasoningDetails;
     this.toolCalls = options.toolCalls;
@@ -785,4 +796,15 @@ function asReasoningDetails(
   }
 
   return reasoning;
+}
+
+function asFiles(
+  files:
+    | Array<{
+        data: string | Uint8Array;
+        mimeType: string;
+      }>
+    | undefined,
+): Array<GeneratedFile> {
+  return files?.map(file => new DefaultGeneratedFile(file)) ?? [];
 }
