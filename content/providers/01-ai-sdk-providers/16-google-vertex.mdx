@@ -313,8 +313,8 @@ const { text } = await generateText({
 });
 ```
 
-Google Vertex language models can also be used in the `streamText` and `streamUI` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+Google Vertex language models can also be used in the `streamText` function
+(see [AI SDK Core](/docs/ai-sdk-core)).
 
 #### File Inputs
 
@@ -599,6 +599,41 @@ const { image } = await generateImage({
 });
 ```
 
+Further configuration can be done using Google Vertex provider options. You can validate the provider options using the `GoogleVertexImageProviderOptions` type.
+
+```ts
+import { vertex } from '@ai-sdk/google-vertex';
+import { GoogleVertexImageProviderOptions } from '@ai-sdk/google-vertex';
+import { generateImage } from 'ai';
+
+const { image } = await generateImage({
+  model: vertex.image('imagen-3.0-generate-001'),
+  providerOptions: {
+    vertex: {
+      negativePrompt: 'pixelated, blurry, low-quality',
+    } satisfies GoogleVertexImageProviderOptions,
+  },
+  // ...
+});
+```
+
+The following provider options are available:
+
+- **negativePrompt** _string_
+  A description of what to discourage in the generated images.
+
+- **personGeneration** `allow_adult` | `allow_all` | `dont_allow`
+  Whether to allow person generation. Defaults to `allow_adult`.
+
+- **safetySetting** `block_low_and_above` | `block_medium_and_above` | `block_only_high` | `block_none`
+  Whether to block unsafe content. Defaults to `block_medium_and_above`.
+
+- **addWatermark** _boolean_
+  Whether to add an invisible watermark to the generated images. Defaults to `true`.
+
+- **storageUri** _string_
+  Cloud Storage URI to store the generated images.
+
 <Note>
   Imagen models do not support the `size` parameter. Use the `aspectRatio`
   parameter instead.
@@ -808,7 +843,7 @@ const { text } = await generateText({
 ```
 
 Anthropic language models can also be used in the `streamText`, `generateObject`, and `streamObject` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+(see [AI SDK Core](/docs/ai-sdk-core)).
 
 <Note>
   The Anthropic API returns streaming tool calls all at once after a delay. This

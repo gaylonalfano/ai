@@ -1,5 +1,129 @@
 # @ai-sdk/azure
 
+## 1.3.11
+
+### Patch Changes
+
+- Updated dependencies [dbe53e7]
+- Updated dependencies [84ffaba]
+  - @ai-sdk/openai@1.3.10
+
+## 1.3.10
+
+### Patch Changes
+
+- Updated dependencies [013faa8]
+- Updated dependencies [013faa8]
+  - @ai-sdk/provider@1.1.2
+  - @ai-sdk/openai@1.3.9
+  - @ai-sdk/provider-utils@2.2.6
+
+## 1.3.9
+
+### Patch Changes
+
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/provider@1.1.1
+  - @ai-sdk/openai@1.3.8
+
+## 1.3.8
+
+### Patch Changes
+
+- e82024e: feat (provider/azure): add OpenAI responses API support
+
+## 1.3.7
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/openai@1.3.7
+
+## 1.3.6
+
+### Patch Changes
+
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/openai@1.3.6
+
+## 1.3.5
+
+### Patch Changes
+
+- Updated dependencies [52ed95f]
+- Updated dependencies [b01120e]
+  - @ai-sdk/openai@1.3.5
+  - @ai-sdk/provider-utils@2.2.2
+
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies [b520dba]
+  - @ai-sdk/openai@1.3.4
+
+## 1.3.3
+
+### Patch Changes
+
+- Updated dependencies [24befd8]
+  - @ai-sdk/openai@1.3.3
+
+## 1.3.2
+
+### Patch Changes
+
+- Updated dependencies [db15028]
+  - @ai-sdk/openai@1.3.2
+
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/openai@1.3.1
+
+## 1.3.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/openai@1.3.0
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+
+## 1.2.8
+
+### Patch Changes
+
+- Updated dependencies [9f4f1bc]
+  - @ai-sdk/openai@1.2.8
+
+## 1.2.7
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/openai@1.2.7
+
+## 1.2.6
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/openai@1.2.6
+  - @ai-sdk/provider-utils@2.1.14
+
 ## 1.2.5
 
 ### Patch Changes

@@ -87,7 +87,7 @@ const { text } = await generateText({
 ```
 
 Anthropic language models can also be used in the `streamText`, `generateObject`, and `streamObject` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+(see [AI SDK Core](/docs/ai-sdk-core)).
 
 <Note>
   The Anthropic API returns streaming tool calls all at once after a delay. This
@@ -112,7 +112,7 @@ You can enable it using the `thinking` provider option
 and specifying a thinking budget in tokens.
 
 ```ts
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 
 const { text, reasoning, reasoningDetails } = await generateText({
@@ -121,7 +121,7 @@ const { text, reasoning, reasoningDetails } = await generateText({
   providerOptions: {
     anthropic: {
       thinking: { type: 'enabled', budgetTokens: 12000 },
-    },
+    } satisfies AnthropicProviderOptions,
   },
 });
 
@@ -215,6 +215,14 @@ The minimum cacheable prompt length is:
 Shorter prompts cannot be cached, even if marked with `cacheControl`. Any requests to cache fewer than this number of tokens will be processed without caching.
 
 For more on prompt caching with Anthropic, see [Anthropic's Cache Control documentation](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching).
+
+<Note type="warning">
+  Because the `UIMessage` type (used by AI SDK UI hooks like `useChat`) does not
+  support the `providerOptions` property, you can use `convertToCoreMessages`
+  first before passing the messages to functions like `generateText` or
+  `streamText`. For more details on `providerOptions` usage, see
+  [here](/docs/foundations/prompts#provider-options).
+</Note>
 
 ### Computer Use
 
@@ -343,6 +351,34 @@ These tools can be used in conjunction with the `sonnet-3-5-sonnet-20240620` mod
 
 Anthropic Sonnet `claude-3-5-sonnet-20241022` supports reading PDF files.
 You can pass PDF files as part of the message content using the `file` type:
+
+Option 1: URL-based PDF document
+
+```ts
+const result = await generateText({
+  model: anthropic('claude-3-5-sonnet-20241022'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: 'What is an embedding model according to this document?',
+        },
+        {
+          type: 'file',
+          data: new URL(
+            'https://github.com/vercel/ai/blob/main/examples/ai-core/data/ai.pdf?raw=true',
+          ),
+          mimeType: 'application/pdf',
+        },
+      ],
+    },
+  ],
+});
+```
+
+Option 2: Base64-encoded PDF document
 
 ```ts
 const result = await generateText({

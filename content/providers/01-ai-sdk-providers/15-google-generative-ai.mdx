@@ -80,7 +80,7 @@ const model = google('gemini-1.5-pro-latest');
   e.g. `tunedModels/my-model`.
 </Note>
 
-Google Generative AI models support also some model specific settings that are not part of the [standard call settings](/docs/ai-sdk-core/settings).
+Google Generative AI also supports some model specific settings that are not part of the [standard call settings](/docs/ai-sdk-core/settings).
 You can pass them as an options argument:
 
 ```ts
@@ -132,6 +132,29 @@ The following optional settings are available for Google Generative AI models:
     - `BLOCK_ONLY_HIGH`
     - `BLOCK_NONE`
 
+Further configuration can be done using Google Generative AI provider options. You can validate the provider options using the `GoogleGenerativeAIProviderOptions` type.
+
+```ts
+import { google } from '@ai-sdk/google';
+import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
+import { generateText } from 'ai';
+
+const { text } = await generateText({
+  model: google('gemini-1.5-pro-latest'),
+  providerOptions: {
+    google: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    } satisfies GoogleGenerativeAIProviderOptions,
+  },
+  // ...
+});
+```
+
+The following provider options are available:
+
+- **responseModalities** _string[]_
+  The modalities to use for the response. The following modalities are supported: `TEXT`, `IMAGE`. When not defined or empty, the model defaults to returning only text.
+
 You can use Google Generative AI language models to generate text with the `generateText` function:
 
 ```ts
@@ -144,8 +167,8 @@ const { text } = await generateText({
 });
 ```
 
-Google Generative AI language models can also be used in the `streamText`, `generateObject`, `streamObject`, and `streamUI` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+Google Generative AI language models can also be used in the `streamText`, `generateObject`, and `streamObject` functions
+(see [AI SDK Core](/docs/ai-sdk-core)).
 
 ### File Inputs
 
@@ -350,6 +373,30 @@ const { sources } = await generateText({
 });
 ```
 
+### Image Outputs
+
+The model `gemini-2.0-flash-exp` supports image generation. Images are exposed as files in the response.
+You need to enable image output in the provider options using the `responseModalities` option.
+
+```ts
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
+
+const result = await generateText({
+  model: google('gemini-2.0-flash-exp'),
+  providerOptions: {
+    google: { responseModalities: ['TEXT', 'IMAGE'] },
+  },
+  prompt: 'Generate an image of a comic cat',
+});
+
+for (const file of result.files) {
+  if (file.mimeType.startsWith('image/')) {
+    // show the image
+  }
+}
+```
+
 ### Safety Ratings
 
 The safety ratings provide insight into the safety of the model's response.
@@ -438,6 +485,7 @@ The following Zod features are known to not work with Google Generative AI:
 
 | Model                        | Image Input         | Object Generation   | Tool Usage          | Tool Streaming      |
 | ---------------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| `gemini-2.5-pro-exp-03-25`   | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
 | `gemini-2.0-flash-001`       | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
 | `gemini-1.5-pro`             | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
 | `gemini-1.5-pro-latest`      | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
