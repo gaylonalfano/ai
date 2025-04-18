@@ -1,5 +1,108 @@
 # @ai-sdk/openai-compatible
 
+## 0.2.11
+
+### Patch Changes
+
+- b5c9cd4: fix (provider/openai-compatible): change tool_call type schema to nullish
+
+## 0.2.10
+
+### Patch Changes
+
+- Updated dependencies [beef951]
+  - @ai-sdk/provider@1.1.3
+  - @ai-sdk/provider-utils@2.2.7
+
+## 0.2.9
+
+### Patch Changes
+
+- 1bbc698: chore(openai-compatible): deprecate simulateStreaming
+
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [013faa8]
+  - @ai-sdk/provider@1.1.2
+  - @ai-sdk/provider-utils@2.2.6
+
+## 0.2.7
+
+### Patch Changes
+
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/provider@1.1.1
+
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+
+## 0.2.5
+
+### Patch Changes
+
+- d186cca: feat (provider/openai-compatible): add additional token usage metrics
+
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+
+## 0.2.2
+
+### Patch Changes
+
+- a6b55cc: feat (providers/openai-compatible): add openai-compatible image model and use as xai image model base
+
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+
+## 0.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/provider-utils@2.1.14
+
 ## 0.1.15
 
 ### Patch Changes

@@ -15,6 +15,7 @@ export type GoogleGenerativeAIModelId =
   | 'gemini-1.5-pro-002'
   // Experimental models
   // https://ai.google.dev/gemini-api/docs/models/experimental-models
+  | 'gemini-2.5-pro-exp-03-25'
   | 'gemini-2.0-flash-lite-preview-02-05'
   | 'gemini-2.0-pro-exp-02-05'
   | 'gemini-2.0-flash-thinking-exp-01-21'
@@ -71,7 +72,8 @@ Optional. A list of unique safety settings for blocking unsafe content.
       | 'BLOCK_LOW_AND_ABOVE'
       | 'BLOCK_MEDIUM_AND_ABOVE'
       | 'BLOCK_ONLY_HIGH'
-      | 'BLOCK_NONE';
+      | 'BLOCK_NONE'
+      | 'OFF';
   }>;
   /**
    * Optional. Enables timestamp understanding for audio-only files.

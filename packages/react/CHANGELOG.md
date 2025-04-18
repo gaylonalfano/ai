@@ -1,5 +1,100 @@
 # @ai-sdk/react
 
+## 1.2.9
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.2.7
+- @ai-sdk/ui-utils@1.2.8
+
+## 1.2.8
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.2.6
+- @ai-sdk/ui-utils@1.2.7
+
+## 1.2.7
+
+### Patch Changes
+
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/ui-utils@1.2.6
+
+## 1.2.6
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/ui-utils@1.2.5
+
+## 1.2.5
+
+### Patch Changes
+
+- a043b14: fix (ui): prevent early addToolResult submission
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/ui-utils@1.2.4
+
+## 1.2.4
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+  - @ai-sdk/ui-utils@1.2.3
+
+## 1.2.3
+
+### Patch Changes
+
+- Updated dependencies [65243ce]
+  - @ai-sdk/ui-utils@1.2.2
+
+## 1.2.2
+
+### Patch Changes
+
+- d92fa29: feat: add credentials support to experimental useObject and StructuredObject
+
+## 1.2.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/ui-utils@1.2.1
+
+## 1.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider-utils@2.2.0
+  - @ai-sdk/ui-utils@1.2.0
+
+## 1.1.25
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/ui-utils@1.1.21
+
+## 1.1.24
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.1.14
+- @ai-sdk/ui-utils@1.1.20
+
 ## 1.1.23
 
 ### Patch Changes
