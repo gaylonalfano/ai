@@ -1,5 +1,134 @@
 # @ai-sdk/svelte
 
+## 2.1.12
+
+### Patch Changes
+
+- Updated dependencies [d87b9d1]
+  - @ai-sdk/provider-utils@2.2.8
+  - @ai-sdk/ui-utils@1.2.11
+
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies [6c59ae7]
+  - @ai-sdk/ui-utils@1.2.10
+
+## 2.1.10
+
+### Patch Changes
+
+- Updated dependencies [62181ef]
+  - @ai-sdk/ui-utils@1.2.9
+
+## 2.1.9
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.2.7
+- @ai-sdk/ui-utils@1.2.8
+
+## 2.1.8
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.2.6
+- @ai-sdk/ui-utils@1.2.7
+
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/ui-utils@1.2.6
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/ui-utils@1.2.5
+
+## 2.1.5
+
+### Patch Changes
+
+- a043b14: fix (ui): prevent early addToolResult submission
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/ui-utils@1.2.4
+
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+  - @ai-sdk/ui-utils@1.2.3
+
+## 2.1.3
+
+### Patch Changes
+
+- Updated dependencies [65243ce]
+  - @ai-sdk/ui-utils@1.2.2
+
+## 2.1.2
+
+### Patch Changes
+
+- d92fa29: feat: add credentials support to experimental useObject and StructuredObject
+
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/ui-utils@1.2.1
+
+## 2.1.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider-utils@2.2.0
+  - @ai-sdk/ui-utils@1.2.0
+
+## 2.0.4
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/ui-utils@1.1.21
+
+## 2.0.3
+
+### Patch Changes
+
+- 62b327e: fix: Use instance-specific generateId for user messages
+
+## 2.0.2
+
+### Patch Changes
+
+- d1ea22e: fix(ui/svelte): Allow class instances to be created as deriveds
+
+## 2.0.1
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@2.1.14
+- @ai-sdk/ui-utils@1.1.20
+
 ## 2.0.0
 
 ### Major Changes
