@@ -4,6 +4,7 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > onStepFinish should 
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "tool-calls",
     "isContinued": false,
     "logprobs": undefined,
@@ -18,10 +19,6 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > onStepFinish should 
       "messages": [
         {
           "content": [
-            {
-              "text": "",
-              "type": "text",
-            },
             {
               "args": {
                 "value": "value",
@@ -83,6 +80,7 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > onStepFinish should 
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -99,10 +97,6 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > onStepFinish should 
       "messages": [
         {
           "content": [
-            {
-              "text": "",
-              "type": "text",
-            },
             {
               "args": {
                 "value": "value",
@@ -161,10 +155,6 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > result.response.mess
   {
     "content": [
       {
-        "text": "",
-        "type": "text",
-      },
-      {
         "args": {
           "value": "value",
         },
@@ -205,6 +195,7 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > result.steps should 
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "tool-calls",
     "isContinued": false,
     "logprobs": undefined,
@@ -219,10 +210,6 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > result.steps should 
       "messages": [
         {
           "content": [
-            {
-              "text": "",
-              "type": "text",
-            },
             {
               "args": {
                 "value": "value",
@@ -284,6 +271,7 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > result.steps should 
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -301,9 +289,346 @@ exports[`options.maxSteps > 2 steps: initial, tool-result > result.steps should 
         {
           "content": [
             {
-              "text": "",
+              "args": {
+                "value": "value",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "id": "msg-0",
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "result": "result1",
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "id": "msg-1",
+          "role": "tool",
+        },
+        {
+          "content": [
+            {
+              "text": "Hello, world!",
               "type": "text",
             },
+          ],
+          "id": "msg-2",
+          "role": "assistant",
+        },
+      ],
+      "modelId": "test-response-model-id",
+      "timestamp": 1970-01-01T00:00:10.000Z,
+    },
+    "sources": [],
+    "stepType": "tool-result",
+    "text": "Hello, world!",
+    "toolCalls": [],
+    "toolResults": [],
+    "usage": {
+      "completionTokens": 20,
+      "promptTokens": 10,
+      "totalTokens": 30,
+    },
+    "warnings": undefined,
+  },
+]
+`;
+
+exports[`options.maxSteps > 2 steps: initial, tool-result with prepareStep > onStepFinish should be called for each step 1`] = `
+[
+  {
+    "experimental_providerMetadata": undefined,
+    "files": [],
+    "finishReason": "tool-calls",
+    "isContinued": false,
+    "logprobs": undefined,
+    "providerMetadata": undefined,
+    "reasoning": undefined,
+    "reasoningDetails": [],
+    "request": {},
+    "response": {
+      "body": undefined,
+      "headers": undefined,
+      "id": "test-id-1-from-model",
+      "messages": [
+        {
+          "content": [
+            {
+              "args": {
+                "value": "value",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "id": "msg-0",
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "result": "result1",
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "id": "msg-1",
+          "role": "tool",
+        },
+      ],
+      "modelId": "test-response-model-id",
+      "timestamp": 1970-01-01T00:00:00.000Z,
+    },
+    "sources": [],
+    "stepType": "initial",
+    "text": "",
+    "toolCalls": [
+      {
+        "args": {
+          "value": "value",
+        },
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-call",
+      },
+    ],
+    "toolResults": [
+      {
+        "args": {
+          "value": "value",
+        },
+        "result": "result1",
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-result",
+      },
+    ],
+    "usage": {
+      "completionTokens": 5,
+      "promptTokens": 10,
+      "totalTokens": 15,
+    },
+    "warnings": undefined,
+  },
+  {
+    "experimental_providerMetadata": undefined,
+    "files": [],
+    "finishReason": "stop",
+    "isContinued": false,
+    "logprobs": undefined,
+    "providerMetadata": undefined,
+    "reasoning": undefined,
+    "reasoningDetails": [],
+    "request": {},
+    "response": {
+      "body": undefined,
+      "headers": {
+        "custom-response-header": "response-header-value",
+      },
+      "id": "test-id-2-from-model",
+      "messages": [
+        {
+          "content": [
+            {
+              "args": {
+                "value": "value",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "id": "msg-0",
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "result": "result1",
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "id": "msg-1",
+          "role": "tool",
+        },
+        {
+          "content": [
+            {
+              "text": "Hello, world!",
+              "type": "text",
+            },
+          ],
+          "id": "msg-2",
+          "role": "assistant",
+        },
+      ],
+      "modelId": "test-response-model-id",
+      "timestamp": 1970-01-01T00:00:10.000Z,
+    },
+    "sources": [],
+    "stepType": "tool-result",
+    "text": "Hello, world!",
+    "toolCalls": [],
+    "toolResults": [],
+    "usage": {
+      "completionTokens": 20,
+      "promptTokens": 10,
+      "totalTokens": 30,
+    },
+    "warnings": undefined,
+  },
+]
+`;
+
+exports[`options.maxSteps > 2 steps: initial, tool-result with prepareStep > result.response.messages should contain response messages from all steps 1`] = `
+[
+  {
+    "content": [
+      {
+        "args": {
+          "value": "value",
+        },
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-call",
+      },
+    ],
+    "id": "msg-0",
+    "role": "assistant",
+  },
+  {
+    "content": [
+      {
+        "result": "result1",
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-result",
+      },
+    ],
+    "id": "msg-1",
+    "role": "tool",
+  },
+  {
+    "content": [
+      {
+        "text": "Hello, world!",
+        "type": "text",
+      },
+    ],
+    "id": "msg-2",
+    "role": "assistant",
+  },
+]
+`;
+
+exports[`options.maxSteps > 2 steps: initial, tool-result with prepareStep > result.steps should contain all steps 1`] = `
+[
+  {
+    "experimental_providerMetadata": undefined,
+    "files": [],
+    "finishReason": "tool-calls",
+    "isContinued": false,
+    "logprobs": undefined,
+    "providerMetadata": undefined,
+    "reasoning": undefined,
+    "reasoningDetails": [],
+    "request": {},
+    "response": {
+      "body": undefined,
+      "headers": undefined,
+      "id": "test-id-1-from-model",
+      "messages": [
+        {
+          "content": [
+            {
+              "args": {
+                "value": "value",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "id": "msg-0",
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "result": "result1",
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "id": "msg-1",
+          "role": "tool",
+        },
+      ],
+      "modelId": "test-response-model-id",
+      "timestamp": 1970-01-01T00:00:00.000Z,
+    },
+    "sources": [],
+    "stepType": "initial",
+    "text": "",
+    "toolCalls": [
+      {
+        "args": {
+          "value": "value",
+        },
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-call",
+      },
+    ],
+    "toolResults": [
+      {
+        "args": {
+          "value": "value",
+        },
+        "result": "result1",
+        "toolCallId": "call-1",
+        "toolName": "tool1",
+        "type": "tool-result",
+      },
+    ],
+    "usage": {
+      "completionTokens": 5,
+      "promptTokens": 10,
+      "totalTokens": 15,
+    },
+    "warnings": undefined,
+  },
+  {
+    "experimental_providerMetadata": undefined,
+    "files": [],
+    "finishReason": "stop",
+    "isContinued": false,
+    "logprobs": undefined,
+    "providerMetadata": undefined,
+    "reasoning": undefined,
+    "reasoningDetails": [],
+    "request": {},
+    "response": {
+      "body": undefined,
+      "headers": {
+        "custom-response-header": "response-header-value",
+      },
+      "id": "test-id-2-from-model",
+      "messages": [
+        {
+          "content": [
             {
               "args": {
                 "value": "value",
@@ -361,6 +686,7 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > onS
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -403,6 +729,17 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > onS
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [
+      DefaultGeneratedFile {
+        "base64Data": undefined,
+        "mimeType": "image/png",
+        "uint8ArrayData": Uint8Array [
+          1,
+          2,
+          3,
+        ],
+      },
+    ],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -462,6 +799,7 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > onS
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -534,6 +872,13 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > onS
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [
+      DefaultGeneratedFile {
+        "base64Data": "QkFVRw==",
+        "mimeType": "image/jpeg",
+        "uint8ArrayData": undefined,
+      },
+    ],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -586,6 +931,16 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > onS
       "totalTokens": 5,
     },
     "warnings": undefined,
+  },
+]
+`;
+
+exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > result.files should contain files from last step 1`] = `
+[
+  DefaultGeneratedFile {
+    "base64Data": "QkFVRw==",
+    "mimeType": "image/jpeg",
+    "uint8ArrayData": undefined,
   },
 ]
 `;
@@ -632,6 +987,7 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > res
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -674,6 +1030,17 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > res
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [
+      DefaultGeneratedFile {
+        "base64Data": undefined,
+        "mimeType": "image/png",
+        "uint8ArrayData": Uint8Array [
+          1,
+          2,
+          3,
+        ],
+      },
+    ],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -733,6 +1100,7 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > res
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "length",
     "isContinued": true,
     "logprobs": undefined,
@@ -805,6 +1173,13 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > res
   },
   {
     "experimental_providerMetadata": undefined,
+    "files": [
+      DefaultGeneratedFile {
+        "base64Data": "QkFVRw==",
+        "mimeType": "image/jpeg",
+        "uint8ArrayData": undefined,
+      },
+    ],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -857,6 +1232,25 @@ exports[`options.maxSteps > 4 steps: initial, continue, continue, continue > res
       "totalTokens": 5,
     },
     "warnings": undefined,
+  },
+]
+`;
+
+exports[`result.files > should contain files 1`] = `
+[
+  DefaultGeneratedFile {
+    "base64Data": undefined,
+    "mimeType": "image/png",
+    "uint8ArrayData": Uint8Array [
+      1,
+      2,
+      3,
+    ],
+  },
+  DefaultGeneratedFile {
+    "base64Data": "QkFVRw==",
+    "mimeType": "image/jpeg",
+    "uint8ArrayData": undefined,
   },
 ]
 `;
@@ -1014,6 +1408,7 @@ exports[`result.steps > should add the reasoning from the model response to the 
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -1074,10 +1469,26 @@ exports[`result.steps > should add the reasoning from the model response to the 
 ]
 `;
 
-exports[`result.steps > should contain sources 1`] = `
+exports[`result.steps > should contain files 1`] = `
 [
   {
     "experimental_providerMetadata": undefined,
+    "files": [
+      DefaultGeneratedFile {
+        "base64Data": undefined,
+        "mimeType": "image/png",
+        "uint8ArrayData": Uint8Array [
+          1,
+          2,
+          3,
+        ],
+      },
+      DefaultGeneratedFile {
+        "base64Data": "QkFVRw==",
+        "mimeType": "image/jpeg",
+        "uint8ArrayData": undefined,
+      },
+    ],
     "finishReason": "stop",
     "isContinued": false,
     "logprobs": undefined,
@@ -1093,7 +1504,63 @@ exports[`result.steps > should contain sources 1`] = `
         {
           "content": [
             {
-              "text": "",
+              "data": "AQID",
+              "mimeType": "image/png",
+              "type": "file",
+            },
+            {
+              "data": "QkFVRw==",
+              "mimeType": "image/jpeg",
+              "type": "file",
+            },
+            {
+              "text": "Hello, world!",
+              "type": "text",
+            },
+          ],
+          "id": "msg-0",
+          "role": "assistant",
+        },
+      ],
+      "modelId": "mock-model-id",
+      "timestamp": 1970-01-01T00:00:00.000Z,
+    },
+    "sources": [],
+    "stepType": "initial",
+    "text": "Hello, world!",
+    "toolCalls": [],
+    "toolResults": [],
+    "usage": {
+      "completionTokens": 20,
+      "promptTokens": 10,
+      "totalTokens": 30,
+    },
+    "warnings": undefined,
+  },
+]
+`;
+
+exports[`result.steps > should contain sources 1`] = `
+[
+  {
+    "experimental_providerMetadata": undefined,
+    "files": [],
+    "finishReason": "stop",
+    "isContinued": false,
+    "logprobs": undefined,
+    "providerMetadata": undefined,
+    "reasoning": undefined,
+    "reasoningDetails": [],
+    "request": {},
+    "response": {
+      "body": undefined,
+      "headers": undefined,
+      "id": "id-0",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Hello, world!",
               "type": "text",
             },
           ],
@@ -1129,7 +1596,7 @@ exports[`result.steps > should contain sources 1`] = `
       },
     ],
     "stepType": "initial",
-    "text": "",
+    "text": "Hello, world!",
     "toolCalls": [],
     "toolResults": [],
     "usage": {

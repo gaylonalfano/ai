@@ -5,6 +5,7 @@ import {
   LanguageModelV1CallWarning,
   LanguageModelV1FinishReason,
   LanguageModelV1ObjectGenerationMode,
+  LanguageModelV1ProviderMetadata,
   LanguageModelV1StreamPart,
 } from '@ai-sdk/provider';
 import {
@@ -39,6 +40,7 @@ export type OpenAICompatibleChatConfig = {
   headers: () => Record<string, string | undefined>;
   url: (options: { modelId: string; path: string }) => string;
   fetch?: FetchFunction;
+  includeUsage?: boolean;
   errorStructure?: ProviderErrorStructure<any>;
   metadataExtractor?: MetadataExtractor;
 
@@ -169,6 +171,10 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
       seed,
       ...providerMetadata?.[this.providerOptionsName],
 
+      reasoning_effort:
+        providerMetadata?.[this.providerOptionsName]?.reasoningEffort ??
+        providerMetadata?.['openai-compatible']?.reasoningEffort,
+
       // messages:
       messages: convertToOpenAICompatibleChatMessages(prompt),
     };
@@ -264,9 +270,33 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
 
     const { messages: rawPrompt, ...rawSettings } = args;
     const choice = responseBody.choices[0];
-    const providerMetadata = this.config.metadataExtractor?.extractMetadata?.({
-      parsedBody: rawResponse,
-    });
+
+    // provider metadata:
+    const providerMetadata: LanguageModelV1ProviderMetadata = {
+      [this.providerOptionsName]: {},
+      ...this.config.metadataExtractor?.extractMetadata?.({
+        parsedBody: rawResponse,
+      }),
+    };
+    const completionTokenDetails =
+      responseBody.usage?.completion_tokens_details;
+    const promptTokenDetails = responseBody.usage?.prompt_tokens_details;
+    if (completionTokenDetails?.reasoning_tokens != null) {
+      providerMetadata[this.providerOptionsName].reasoningTokens =
+        completionTokenDetails?.reasoning_tokens;
+    }
+    if (completionTokenDetails?.accepted_prediction_tokens != null) {
+      providerMetadata[this.providerOptionsName].acceptedPredictionTokens =
+        completionTokenDetails?.accepted_prediction_tokens;
+    }
+    if (completionTokenDetails?.rejected_prediction_tokens != null) {
+      providerMetadata[this.providerOptionsName].rejectedPredictionTokens =
+        completionTokenDetails?.rejected_prediction_tokens;
+    }
+    if (promptTokenDetails?.cached_tokens != null) {
+      providerMetadata[this.providerOptionsName].cachedPromptTokens =
+        promptTokenDetails?.cached_tokens;
+    }
 
     return {
       text: choice.message.content ?? undefined,
@@ -282,7 +312,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
         promptTokens: responseBody.usage?.prompt_tokens ?? NaN,
         completionTokens: responseBody.usage?.completion_tokens ?? NaN,
       },
-      ...(providerMetadata && { providerMetadata }),
+      providerMetadata,
       rawCall: { rawPrompt, rawSettings },
       rawResponse: { headers: responseHeaders, body: rawResponse },
       response: getResponseMetadata(responseBody),
@@ -350,7 +380,16 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
 
     const { args, warnings } = this.getArgs({ ...options });
 
-    const body = JSON.stringify({ ...args, stream: true });
+    const body = {
+      ...args,
+      stream: true,
+
+      // only include stream_options when in strict compatibility mode:
+      stream_options: this.config.includeUsage
+        ? { include_usage: true }
+        : undefined,
+    };
+
     const metadataExtractor =
       this.config.metadataExtractor?.createStreamExtractor();
 
@@ -360,10 +399,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
         modelId: this.modelId,
       }),
       headers: combineHeaders(this.config.headers(), options.headers),
-      body: {
-        ...args,
-        stream: true,
-      },
+      body,
       failedResponseHandler: this.failedResponseHandler,
       successfulResponseHandler: createEventSourceResponseHandler(
         this.chunkSchema,
@@ -386,13 +422,30 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
 
     let finishReason: LanguageModelV1FinishReason = 'unknown';
     let usage: {
-      promptTokens: number | undefined;
       completionTokens: number | undefined;
+      completionTokensDetails: {
+        reasoningTokens: number | undefined;
+        acceptedPredictionTokens: number | undefined;
+        rejectedPredictionTokens: number | undefined;
+      };
+      promptTokens: number | undefined;
+      promptTokensDetails: {
+        cachedTokens: number | undefined;
+      };
     } = {
-      promptTokens: undefined,
       completionTokens: undefined,
+      completionTokensDetails: {
+        reasoningTokens: undefined,
+        acceptedPredictionTokens: undefined,
+        rejectedPredictionTokens: undefined,
+      },
+      promptTokens: undefined,
+      promptTokensDetails: {
+        cachedTokens: undefined,
+      },
     };
     let isFirstChunk = true;
+    let providerOptionsName = this.providerOptionsName;
 
     return {
       stream: response.pipeThrough(
@@ -429,10 +482,36 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
             }
 
             if (value.usage != null) {
-              usage = {
-                promptTokens: value.usage.prompt_tokens ?? undefined,
-                completionTokens: value.usage.completion_tokens ?? undefined,
-              };
+              const {
+                prompt_tokens,
+                completion_tokens,
+                prompt_tokens_details,
+                completion_tokens_details,
+              } = value.usage;
+
+              usage.promptTokens = prompt_tokens ?? undefined;
+              usage.completionTokens = completion_tokens ?? undefined;
+
+              if (completion_tokens_details?.reasoning_tokens != null) {
+                usage.completionTokensDetails.reasoningTokens =
+                  completion_tokens_details?.reasoning_tokens;
+              }
+              if (
+                completion_tokens_details?.accepted_prediction_tokens != null
+              ) {
+                usage.completionTokensDetails.acceptedPredictionTokens =
+                  completion_tokens_details?.accepted_prediction_tokens;
+              }
+              if (
+                completion_tokens_details?.rejected_prediction_tokens != null
+              ) {
+                usage.completionTokensDetails.rejectedPredictionTokens =
+                  completion_tokens_details?.rejected_prediction_tokens;
+              }
+              if (prompt_tokens_details?.cached_tokens != null) {
+                usage.promptTokensDetails.cachedTokens =
+                  prompt_tokens_details?.cached_tokens;
+              }
             }
 
             const choice = value.choices[0];
@@ -575,7 +654,31 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
           },
 
           flush(controller) {
-            const metadata = metadataExtractor?.buildMetadata();
+            const providerMetadata: LanguageModelV1ProviderMetadata = {
+              [providerOptionsName]: {},
+              ...metadataExtractor?.buildMetadata(),
+            };
+            if (usage.completionTokensDetails.reasoningTokens != null) {
+              providerMetadata[providerOptionsName].reasoningTokens =
+                usage.completionTokensDetails.reasoningTokens;
+            }
+            if (
+              usage.completionTokensDetails.acceptedPredictionTokens != null
+            ) {
+              providerMetadata[providerOptionsName].acceptedPredictionTokens =
+                usage.completionTokensDetails.acceptedPredictionTokens;
+            }
+            if (
+              usage.completionTokensDetails.rejectedPredictionTokens != null
+            ) {
+              providerMetadata[providerOptionsName].rejectedPredictionTokens =
+                usage.completionTokensDetails.rejectedPredictionTokens;
+            }
+            if (usage.promptTokensDetails.cachedTokens != null) {
+              providerMetadata[providerOptionsName].cachedPromptTokens =
+                usage.promptTokensDetails.cachedTokens;
+            }
+
             controller.enqueue({
               type: 'finish',
               finishReason,
@@ -583,7 +686,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
                 promptTokens: usage.promptTokens ?? NaN,
                 completionTokens: usage.completionTokens ?? NaN,
               },
-              ...(metadata && { providerMetadata: metadata }),
+              providerMetadata,
             });
           },
         }),
@@ -591,10 +694,29 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV1 {
       rawCall: { rawPrompt, rawSettings },
       rawResponse: { headers: responseHeaders },
       warnings,
-      request: { body },
+      request: { body: JSON.stringify(body) },
     };
   }
 }
+
+const openaiCompatibleTokenUsageSchema = z
+  .object({
+    prompt_tokens: z.number().nullish(),
+    completion_tokens: z.number().nullish(),
+    prompt_tokens_details: z
+      .object({
+        cached_tokens: z.number().nullish(),
+      })
+      .nullish(),
+    completion_tokens_details: z
+      .object({
+        reasoning_tokens: z.number().nullish(),
+        accepted_prediction_tokens: z.number().nullish(),
+        rejected_prediction_tokens: z.number().nullish(),
+      })
+      .nullish(),
+  })
+  .nullish();
 
 // limited version of the schema, focussed on what is needed for the implementation
 // this approach limits breakages when the API changes and increases efficiency
@@ -624,12 +746,7 @@ const OpenAICompatibleChatResponseSchema = z.object({
       finish_reason: z.string().nullish(),
     }),
   ),
-  usage: z
-    .object({
-      prompt_tokens: z.number().nullish(),
-      completion_tokens: z.number().nullish(),
-    })
-    .nullish(),
+  usage: openaiCompatibleTokenUsageSchema,
 });
 
 // limited version of the schema, focussed on what is needed for the implementation
@@ -654,7 +771,7 @@ const createOpenAICompatibleChatChunkSchema = <ERROR_SCHEMA extends z.ZodType>(
                   z.object({
                     index: z.number(),
                     id: z.string().nullish(),
-                    type: z.literal('function').optional(),
+                    type: z.literal('function').nullish(),
                     function: z.object({
                       name: z.string().nullish(),
                       arguments: z.string().nullish(),
@@ -667,12 +784,7 @@ const createOpenAICompatibleChatChunkSchema = <ERROR_SCHEMA extends z.ZodType>(
           finish_reason: z.string().nullish(),
         }),
       ),
-      usage: z
-        .object({
-          prompt_tokens: z.number().nullish(),
-          completion_tokens: z.number().nullish(),
-        })
-        .nullish(),
+      usage: openaiCompatibleTokenUsageSchema,
     }),
     errorSchema,
   ]);
