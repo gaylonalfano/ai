@@ -1,11 +1,10 @@
-import { JsonTestServer } from '@ai-sdk/provider-utils/test';
-import { describe, expect, it } from 'vitest';
+import { createTestServer } from '@ai-sdk/provider-utils/test';
 import { GoogleVertexImageModel } from './google-vertex-image-model';
 
 const prompt = 'A cute baby sea otter';
 
 const model = new GoogleVertexImageModel(
-  'imagen-3.0-generate-001',
+  'imagen-3.0-generate-002',
   {},
   {
     provider: 'google-vertex',
@@ -14,49 +13,36 @@ const model = new GoogleVertexImageModel(
   },
 );
 
+const server = createTestServer({
+  'https://api.example.com/models/imagen-3.0-generate-002:predict': {},
+});
+
 describe('GoogleVertexImageModel', () => {
   describe('doGenerate', () => {
-    const server = new JsonTestServer(
-      'https://api.example.com/models/imagen-3.0-generate-001:predict',
-    );
-
-    server.setupTestEnvironment();
-
-    function prepareJsonResponse() {
-      server.responseBodyJson = {
-        predictions: [
-          { bytesBase64Encoded: 'base64-image-1' },
-          { bytesBase64Encoded: 'base64-image-2' },
-        ],
+    function prepareJsonResponse({
+      headers,
+    }: {
+      headers?: Record<string, string>;
+    } = {}) {
+      server.urls[
+        'https://api.example.com/models/imagen-3.0-generate-002:predict'
+      ].response = {
+        type: 'json-value',
+        headers,
+        body: {
+          predictions: [
+            { bytesBase64Encoded: 'base64-image-1' },
+            { bytesBase64Encoded: 'base64-image-2' },
+          ],
+        },
       };
     }
-
-    it('should pass the correct parameters', async () => {
-      prepareJsonResponse();
-
-      await model.doGenerate({
-        prompt,
-        n: 2,
-        size: undefined,
-        aspectRatio: undefined,
-        seed: undefined,
-        providerOptions: { vertex: { aspectRatio: '1:1' } },
-      });
-
-      expect(await server.getRequestBodyJson()).toStrictEqual({
-        instances: [{ prompt }],
-        parameters: {
-          sampleCount: 2,
-          aspectRatio: '1:1',
-        },
-      });
-    });
 
     it('should pass headers', async () => {
       prepareJsonResponse();
 
       const modelWithHeaders = new GoogleVertexImageModel(
-        'imagen-3.0-generate-001',
+        'imagen-3.0-generate-002',
         {},
         {
           provider: 'google-vertex',
@@ -79,9 +65,7 @@ describe('GoogleVertexImageModel', () => {
         },
       });
 
-      const requestHeaders = await server.getRequestHeaders();
-
-      expect(requestHeaders).toStrictEqual({
+      expect(server.calls[0].requestHeaders).toStrictEqual({
         'content-type': 'application/json',
         'custom-provider-header': 'provider-header-value',
         'custom-request-header': 'request-header-value',
@@ -90,7 +74,7 @@ describe('GoogleVertexImageModel', () => {
 
     it('should respect maxImagesPerCall setting', () => {
       const customModel = new GoogleVertexImageModel(
-        'imagen-3.0-generate-001',
+        'imagen-3.0-generate-002',
         { maxImagesPerCall: 2 },
         {
           provider: 'google-vertex',
@@ -104,7 +88,7 @@ describe('GoogleVertexImageModel', () => {
 
     it('should use default maxImagesPerCall when not specified', () => {
       const defaultModel = new GoogleVertexImageModel(
-        'imagen-3.0-generate-001',
+        'imagen-3.0-generate-002',
         {},
         {
           provider: 'google-vertex',
@@ -138,16 +122,12 @@ describe('GoogleVertexImageModel', () => {
         prompt: 'test prompt',
         n: 1,
         size: undefined,
-        aspectRatio: undefined,
+        aspectRatio: '16:9',
         seed: undefined,
-        providerOptions: {
-          vertex: {
-            aspectRatio: '16:9',
-          },
-        },
+        providerOptions: {},
       });
 
-      expect(await server.getRequestBodyJson()).toStrictEqual({
+      expect(await server.calls[0].requestBody).toStrictEqual({
         instances: [{ prompt: 'test prompt' }],
         parameters: {
           sampleCount: 1,
@@ -168,7 +148,7 @@ describe('GoogleVertexImageModel', () => {
         providerOptions: {},
       });
 
-      expect(await server.getRequestBodyJson()).toStrictEqual({
+      expect(await server.calls[0].requestBody).toStrictEqual({
         instances: [{ prompt: 'test prompt' }],
         parameters: {
           sampleCount: 1,
@@ -189,7 +169,7 @@ describe('GoogleVertexImageModel', () => {
         providerOptions: {},
       });
 
-      expect(await server.getRequestBodyJson()).toStrictEqual({
+      expect(await server.calls[0].requestBody).toStrictEqual({
         instances: [{ prompt: 'test prompt' }],
         parameters: {
           sampleCount: 1,
@@ -209,18 +189,18 @@ describe('GoogleVertexImageModel', () => {
         seed: 42,
         providerOptions: {
           vertex: {
-            temperature: 0.8,
+            addWatermark: false,
           },
         },
       });
 
-      expect(await server.getRequestBodyJson()).toStrictEqual({
+      expect(await server.calls[0].requestBody).toStrictEqual({
         instances: [{ prompt: 'test prompt' }],
         parameters: {
           sampleCount: 1,
           aspectRatio: '1:1',
           seed: 42,
-          temperature: 0.8,
+          addWatermark: false,
         },
       });
     });
@@ -248,11 +228,17 @@ describe('GoogleVertexImageModel', () => {
     });
 
     it('should include response data with timestamp, modelId and headers', async () => {
-      prepareJsonResponse();
+      prepareJsonResponse({
+        headers: {
+          'request-id': 'test-request-id',
+          'x-goog-quota-remaining': '123',
+        },
+      });
+
       const testDate = new Date('2024-03-15T12:00:00Z');
 
       const customModel = new GoogleVertexImageModel(
-        'imagen-3.0-generate-001',
+        'imagen-3.0-generate-002',
         {},
         {
           provider: 'google-vertex',
@@ -263,11 +249,6 @@ describe('GoogleVertexImageModel', () => {
           },
         },
       );
-
-      server.responseHeaders = {
-        'request-id': 'test-request-id',
-        'x-goog-quota-remaining': '123',
-      };
 
       const result = await customModel.doGenerate({
         prompt,
@@ -280,7 +261,7 @@ describe('GoogleVertexImageModel', () => {
 
       expect(result.response).toStrictEqual({
         timestamp: testDate,
-        modelId: 'imagen-3.0-generate-001',
+        modelId: 'imagen-3.0-generate-002',
         headers: {
           'content-length': '97',
           'content-type': 'application/json',
@@ -296,7 +277,7 @@ describe('GoogleVertexImageModel', () => {
 
       const result = await model.doGenerate({
         prompt,
-        n: 1,
+        n: 2,
         size: undefined,
         aspectRatio: undefined,
         seed: undefined,
@@ -311,7 +292,38 @@ describe('GoogleVertexImageModel', () => {
       expect(result.response.timestamp.getTime()).toBeLessThanOrEqual(
         afterDate.getTime(),
       );
-      expect(result.response.modelId).toBe('imagen-3.0-generate-001');
+      expect(result.response.modelId).toBe('imagen-3.0-generate-002');
+    });
+
+    it('should only pass valid provider options', async () => {
+      prepareJsonResponse();
+
+      await model.doGenerate({
+        prompt,
+        n: 2,
+        size: undefined,
+        aspectRatio: '16:9',
+        seed: undefined,
+        providerOptions: {
+          vertex: {
+            addWatermark: false,
+            negativePrompt: 'negative prompt',
+            personGeneration: 'allow_all',
+            foo: 'bar',
+          },
+        },
+      });
+
+      expect(await server.calls[0].requestBody).toStrictEqual({
+        instances: [{ prompt }],
+        parameters: {
+          sampleCount: 2,
+          addWatermark: false,
+          negativePrompt: 'negative prompt',
+          personGeneration: 'allow_all',
+          aspectRatio: '16:9',
+        },
+      });
     });
   });
 });

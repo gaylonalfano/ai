@@ -47,10 +47,6 @@ export function convertToCohereChatPrompt(
               text += part.text;
               break;
             }
-            case 'redacted-reasoning':
-            case 'reasoning': {
-              break; // ignored
-            }
             case 'tool-call': {
               toolCalls.push({
                 id: part.toolCallId,
@@ -62,19 +58,12 @@ export function convertToCohereChatPrompt(
               });
               break;
             }
-            default: {
-              const _exhaustiveCheck: never = part;
-              throw new Error(`Unsupported part: ${_exhaustiveCheck}`);
-            }
           }
         }
 
         messages.push({
           role: 'assistant',
-          // note: this is a workaround for a Cohere API bug
-          // that requires content to be provided
-          // even if there are tool calls
-          content: text !== '' ? text : 'call tool',
+          content: toolCalls.length > 0 ? undefined : text,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
           tool_plan: undefined,
         });
