@@ -3,21 +3,27 @@ import { jsonSchema } from '@ai-sdk/ui-utils';
 import { z, ZodType } from 'zod';
 import { MCPClientError } from '../../../errors';
 import { inferParameters, tool, Tool, ToolExecutionOptions } from '../tool';
-import { createMcpTransport } from './mcp-transport';
+import {
+  JSONRPCError,
+  JSONRPCNotification,
+  JSONRPCRequest,
+  JSONRPCResponse,
+} from './json-rpc-message';
+import {
+  createMcpTransport,
+  isCustomMcpTransport,
+  MCPTransport,
+  MCPTransportConfig,
+} from './mcp-transport';
 import {
   CallToolResult,
   CallToolResultSchema,
   Configuration as ClientConfiguration,
   InitializeResultSchema,
-  JSONRPCError,
-  JSONRPCNotification,
-  JSONRPCRequest,
-  JSONRPCResponse,
   LATEST_PROTOCOL_VERSION,
   ListToolsResult,
   ListToolsResultSchema,
   McpToolSet,
-  MCPTransport,
   Notification,
   PaginatedRequest,
   Request,
@@ -25,14 +31,13 @@ import {
   ServerCapabilities,
   SUPPORTED_PROTOCOL_VERSIONS,
   ToolSchemas,
-  TransportConfig,
 } from './types';
 
 const CLIENT_VERSION = '1.0.0';
 
 interface MCPClientConfig {
   /** Transport configuration for connecting to the MCP server */
-  transport: TransportConfig;
+  transport: MCPTransportConfig | MCPTransport;
   /** Optional callback for uncaught errors */
   onUncaughtError?: (error: unknown) => void;
   /** Optional client name, defaults to 'ai-sdk-mcp-client' */
@@ -56,9 +61,13 @@ export async function createMCPClient(
  * Tool parameters are automatically inferred from the server's JSON schema
  * if not explicitly provided in the tools configuration
  *
+ * This client is meant to be used to communicate with a single server. To communicate and fetch tools across multiple servers, it's recommended to create a new client instance per server.
+ *
  * Not supported:
  * - Client options (e.g. sampling, roots) as they are not needed for tool conversion
  * - Accepting notifications
+ * - Session management (when passing a sessionId to an instance of the Streamable HTTP transport)
+ * - Resumable SSE streams
  */
 class MCPClient {
   private transport: MCPTransport;
@@ -78,10 +87,16 @@ class MCPClient {
     onUncaughtError,
   }: MCPClientConfig) {
     this.onUncaughtError = onUncaughtError;
-    this.transport = createMcpTransport(transportConfig);
-    this.transport.onClose = () => this.onClose();
-    this.transport.onError = (error: Error) => this.onError(error);
-    this.transport.onMessage = message => {
+
+    if (isCustomMcpTransport(transportConfig)) {
+      this.transport = transportConfig;
+    } else {
+      this.transport = createMcpTransport(transportConfig);
+    }
+
+    this.transport.onclose = () => this.onClose();
+    this.transport.onerror = (error: Error) => this.onError(error);
+    this.transport.onmessage = message => {
       if ('method' in message) {
         // This lightweight client implementation does not support
         // receiving notifications or requests from server.
@@ -96,6 +111,7 @@ class MCPClient {
 
       this.onResponse(message);
     };
+
     this.clientInfo = {
       name,
       version: CLIENT_VERSION,
@@ -151,6 +167,25 @@ class MCPClient {
     this.onClose();
   }
 
+  private assertCapability(method: string): void {
+    switch (method) {
+      case 'initialize':
+        break;
+      case 'tools/list':
+      case 'tools/call':
+        if (!this.serverCapabilities.tools) {
+          throw new MCPClientError({
+            message: `Server does not support tools`,
+          });
+        }
+        break;
+      default:
+        throw new MCPClientError({
+          message: `Unsupported method: ${method}`,
+        });
+    }
+  }
+
   private async request<T extends ZodType<object>>({
     request,
     resultSchema,
@@ -168,6 +203,8 @@ class MCPClient {
           }),
         );
       }
+
+      this.assertCapability(request.method);
 
       const signal = options?.signal;
       signal?.throwIfAborted();
@@ -202,7 +239,7 @@ class MCPClient {
           resolve(result);
         } catch (error) {
           const parseError = new MCPClientError({
-            message: 'Failed to parse server initialization result',
+            message: 'Failed to parse server response',
             cause: error,
           });
           reject(parseError);
@@ -223,12 +260,6 @@ class MCPClient {
     params?: PaginatedRequest['params'];
     options?: RequestOptions;
   } = {}): Promise<ListToolsResult> {
-    if (!this.serverCapabilities.tools) {
-      throw new MCPClientError({
-        message: `Server does not support tools`,
-      });
-    }
-
     try {
       return this.request({
         request: { method: 'tools/list', params },
@@ -249,12 +280,6 @@ class MCPClient {
     args: Record<string, unknown>;
     options?: ToolExecutionOptions;
   }): Promise<CallToolResult> {
-    if (!this.serverCapabilities.tools) {
-      throw new MCPClientError({
-        message: `Server does not support tools`,
-      });
-    }
-
     try {
       return this.request({
         request: { method: 'tools/call', params: { name, arguments: args } },
@@ -297,7 +322,11 @@ class MCPClient {
 
         const parameters =
           schemas === 'automatic'
-            ? jsonSchema(inputSchema as JSONSchema7)
+            ? jsonSchema({
+                ...inputSchema,
+                properties: inputSchema.properties ?? {},
+                additionalProperties: false,
+              } as JSONSchema7)
             : schemas[name].parameters;
 
         const self = this;

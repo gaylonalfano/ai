@@ -52,6 +52,12 @@ export type UseChatHelpers = {
    * Abort the current request immediately, keep the generated tokens if any.
    */
   stop: () => void;
+
+  /**
+   * Resume an ongoing chat generation stream. This does not resume an aborted generation.
+   */
+  experimental_resume: () => void;
+
   /**
    * Update the `messages` state locally. This is useful when you want to
    * edit the messages on the client, and then trigger the `reload` method
@@ -236,7 +242,10 @@ By default, it's set to 1, which means that only a single LLM call is made.
   }, [credentials, headers, body]);
 
   const triggerRequest = useCallback(
-    async (chatRequest: ChatRequest) => {
+    async (
+      chatRequest: ChatRequest,
+      requestType: 'generate' | 'resume' = 'generate',
+    ) => {
       mutateStatus('submitted');
       setError(undefined);
 
@@ -339,6 +348,7 @@ By default, it's set to 1, which means that only a single LLM call is made.
           generateId,
           fetch,
           lastMessage: chatMessages[chatMessages.length - 1],
+          requestType,
         });
 
         abortControllerRef.current = null;
@@ -407,7 +417,7 @@ By default, it's set to 1, which means that only a single LLM call is made.
         data,
         headers,
         body,
-        experimental_attachments,
+        experimental_attachments = message.experimental_attachments,
       }: ChatRequestOptions = {},
     ) => {
       const attachmentsForRequest = await prepareAttachmentsForRequest(
@@ -455,6 +465,12 @@ By default, it's set to 1, which means that only a single LLM call is made.
       abortControllerRef.current = null;
     }
   }, []);
+
+  const experimental_resume = useCallback(async () => {
+    const messages = messagesRef.current;
+
+    triggerRequest({ messages }, 'resume');
+  }, [triggerRequest]);
 
   const setMessages = useCallback(
     (messages: Message[] | ((messages: Message[]) => Message[])) => {
@@ -548,7 +564,19 @@ By default, it's set to 1, which means that only a single LLM call is made.
         toolResult: result,
       });
 
-      mutate(currentMessages, false);
+      // array mutation is required to trigger a re-render
+      mutate(
+        [
+          ...currentMessages.slice(0, currentMessages.length - 1),
+          { ...currentMessages[currentMessages.length - 1] },
+        ],
+        false,
+      );
+
+      // when the request is ongoing, the auto-submit will be triggered after the request is finished
+      if (status === 'submitted' || status === 'streaming') {
+        return;
+      }
 
       // auto-submit when all tool calls in the last assistant message have results:
       const lastMessage = currentMessages[currentMessages.length - 1];
@@ -556,7 +584,7 @@ By default, it's set to 1, which means that only a single LLM call is made.
         triggerRequest({ messages: currentMessages });
       }
     },
-    [mutate, triggerRequest],
+    [mutate, status, triggerRequest],
   );
 
   return {
@@ -569,6 +597,7 @@ By default, it's set to 1, which means that only a single LLM call is made.
     append,
     reload,
     stop,
+    experimental_resume,
     input,
     setInput,
     handleInputChange,
