@@ -1,5 +1,4 @@
 import {
-  InvalidArgumentError,
   LanguageModelV1,
   LanguageModelV1CallWarning,
   LanguageModelV1FinishReason,
@@ -10,9 +9,9 @@ import {
   createEventSourceResponseHandler,
   createJsonResponseHandler,
   generateId,
+  parseProviderOptions,
   ParseResult,
   postJsonToApi,
-  safeValidateTypes,
 } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 import { OpenAIConfig } from '../openai-config';
@@ -25,6 +24,7 @@ import { OpenAIResponsesModelId } from './openai-responses-settings';
 export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
   readonly specificationVersion = 'v1';
   readonly defaultObjectGenerationMode = 'json';
+  readonly supportsStructuredOutputs = true;
 
   readonly modelId: OpenAIResponsesModelId;
 
@@ -100,22 +100,11 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
 
     warnings.push(...messageWarnings);
 
-    // parse and validate provider options:
-    const parsedProviderOptions =
-      providerMetadata != null
-        ? safeValidateTypes({
-            value: providerMetadata,
-            schema: providerOptionsSchema,
-          })
-        : { success: true as const, value: undefined };
-    if (!parsedProviderOptions.success) {
-      throw new InvalidArgumentError({
-        argument: 'providerOptions',
-        message: 'invalid provider options',
-        cause: parsedProviderOptions.error,
-      });
-    }
-    const openaiOptions = parsedProviderOptions.value?.openai;
+    const openaiOptions = parseProviderOptions({
+      provider: 'openai',
+      providerOptions: providerMetadata,
+      schema: openaiResponsesProviderOptionsSchema,
+    });
 
     const isStrict = openaiOptions?.strictSchemas ?? true;
 
@@ -147,11 +136,20 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
       previous_response_id: openaiOptions?.previousResponseId,
       store: openaiOptions?.store,
       user: openaiOptions?.user,
+      instructions: openaiOptions?.instructions,
 
       // model-specific settings:
       ...(modelConfig.isReasoningModel &&
-        openaiOptions?.reasoningEffort != null && {
-          reasoning: { effort: openaiOptions?.reasoningEffort },
+        (openaiOptions?.reasoningEffort != null ||
+          openaiOptions?.reasoningSummary != null) && {
+          reasoning: {
+            ...(openaiOptions?.reasoningEffort != null && {
+              effort: openaiOptions.reasoningEffort,
+            }),
+            ...(openaiOptions?.reasoningSummary != null && {
+              summary: openaiOptions.reasoningSummary,
+            }),
+          },
         }),
       ...(modelConfig.requiredAutoTruncation && {
         truncation: 'auto',
@@ -301,6 +299,12 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
               }),
               z.object({
                 type: z.literal('reasoning'),
+                summary: z.array(
+                  z.object({
+                    type: z.literal('summary_text'),
+                    text: z.string(),
+                  }),
+                ),
               }),
             ]),
           ),
@@ -326,6 +330,9 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
         args: output.arguments,
       }));
 
+    const reasoningSummary =
+      response.output.find(item => item.type === 'reasoning')?.summary ?? null;
+
     return {
       text: outputTextElements.map(content => content.text).join('\n'),
       sources: outputTextElements.flatMap(content =>
@@ -341,6 +348,12 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
         hasToolCalls: toolCalls.length > 0,
       }),
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      reasoning: reasoningSummary
+        ? reasoningSummary.map(summary => ({
+            type: 'text' as const,
+            text: summary.text,
+          }))
+        : undefined,
       usage: {
         promptTokens: response.usage.input_tokens,
         completionTokens: response.usage.output_tokens,
@@ -465,6 +478,11 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV1 {
             } else if (isTextDeltaChunk(value)) {
               controller.enqueue({
                 type: 'text-delta',
+                textDelta: value.delta,
+              });
+            } else if (isResponseReasoningSummaryTextDeltaChunk(value)) {
+              controller.enqueue({
+                type: 'reasoning',
                 textDelta: value.delta,
               });
             } else if (
@@ -619,6 +637,14 @@ const responseAnnotationAddedSchema = z.object({
   }),
 });
 
+const responseReasoningSummaryTextDeltaSchema = z.object({
+  type: z.literal('response.reasoning_summary_text.delta'),
+  item_id: z.string(),
+  output_index: z.number(),
+  summary_index: z.number(),
+  delta: z.string(),
+});
+
 const openaiResponsesChunkSchema = z.union([
   textDeltaChunkSchema,
   responseFinishedChunkSchema,
@@ -627,6 +653,7 @@ const openaiResponsesChunkSchema = z.union([
   responseFunctionCallArgumentsDeltaSchema,
   responseOutputItemAddedSchema,
   responseAnnotationAddedSchema,
+  responseReasoningSummaryTextDeltaSchema,
   z.object({ type: z.string() }).passthrough(), // fallback for unknown chunks
 ]);
 
@@ -674,19 +701,11 @@ function isResponseAnnotationAddedChunk(
   return chunk.type === 'response.output_text.annotation.added';
 }
 
-const providerOptionsSchema = z.object({
-  openai: z
-    .object({
-      metadata: z.any().nullish(),
-      parallelToolCalls: z.boolean().nullish(),
-      previousResponseId: z.string().nullish(),
-      store: z.boolean().nullish(),
-      user: z.string().nullish(),
-      reasoningEffort: z.string().nullish(),
-      strictSchemas: z.boolean().nullish(),
-    })
-    .nullish(),
-});
+function isResponseReasoningSummaryTextDeltaChunk(
+  chunk: z.infer<typeof openaiResponsesChunkSchema>,
+): chunk is z.infer<typeof responseReasoningSummaryTextDeltaSchema> {
+  return chunk.type === 'response.reasoning_summary_text.delta';
+}
 
 type ResponsesModelConfig = {
   isReasoningModel: boolean;
@@ -719,3 +738,19 @@ function getResponsesModelConfig(modelId: string): ResponsesModelConfig {
     requiredAutoTruncation: false,
   };
 }
+
+const openaiResponsesProviderOptionsSchema = z.object({
+  metadata: z.any().nullish(),
+  parallelToolCalls: z.boolean().nullish(),
+  previousResponseId: z.string().nullish(),
+  store: z.boolean().nullish(),
+  user: z.string().nullish(),
+  reasoningEffort: z.string().nullish(),
+  strictSchemas: z.boolean().nullish(),
+  instructions: z.string().nullish(),
+  reasoningSummary: z.string().nullish(),
+});
+
+export type OpenAIResponsesProviderOptions = z.infer<
+  typeof openaiResponsesProviderOptionsSchema
+>;

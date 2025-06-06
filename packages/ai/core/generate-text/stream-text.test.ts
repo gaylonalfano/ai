@@ -108,6 +108,31 @@ const modelWithSources = new MockLanguageModelV1({
   }),
 });
 
+const modelWithFiles = new MockLanguageModelV1({
+  doStream: async () => ({
+    stream: convertArrayToReadableStream([
+      {
+        type: 'file',
+        data: 'Hello World',
+        mimeType: 'text/plain',
+      },
+      { type: 'text-delta', textDelta: 'Hello!' },
+      {
+        type: 'file',
+        data: 'QkFVRw==',
+        mimeType: 'image/jpeg',
+      },
+      {
+        type: 'finish',
+        finishReason: 'stop',
+        logprobs: undefined,
+        usage: { completionTokens: 10, promptTokens: 3 },
+      },
+    ]),
+    rawCall: { rawPrompt: 'prompt', rawSettings: {} },
+  }),
+});
+
 const modelWithReasoning = new MockLanguageModelV1({
   doStream: async () => ({
     stream: convertArrayToReadableStream([
@@ -302,12 +327,18 @@ describe('streamText', () => {
     it('should send sources', async () => {
       const result = streamText({
         model: modelWithSources,
-        prompt: 'test-input',
-        _internal: {
-          currentDate: mockValues(new Date(2000)),
-          generateId: mockValues('id-2000'),
-        },
-        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+        ...defaultSettings(),
+      });
+
+      expect(
+        await convertAsyncIterableToArray(result.fullStream),
+      ).toMatchSnapshot();
+    });
+
+    it('should send files', async () => {
+      const result = streamText({
+        model: modelWithFiles,
+        ...defaultSettings(),
       });
 
       expect(
@@ -1006,6 +1037,26 @@ describe('streamText', () => {
       });
       expect(mockResponse.getDecodedChunks()).toMatchSnapshot();
     });
+
+    it('should write file content to a Node.js response-like object', async () => {
+      const mockResponse = createMockServerResponse();
+
+      const result = streamText({
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
+
+      result.pipeDataStreamToResponse(mockResponse);
+
+      await mockResponse.waitForEnd();
+
+      expect(mockResponse.statusCode).toBe(200);
+      expect(mockResponse.headers).toEqual({
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Vercel-AI-Data-Stream': 'v1',
+      });
+      expect(mockResponse.getDecodedChunks()).toMatchSnapshot();
+    });
   });
 
   describe('result.pipeTextStreamToResponse', async () => {
@@ -1292,6 +1343,21 @@ describe('streamText', () => {
         ),
       ).toMatchSnapshot();
     });
+
+    it('should send file content', async () => {
+      const result = streamText({
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
+
+      const dataStream = result.toDataStream();
+
+      expect(
+        await convertReadableStreamToArray(
+          dataStream.pipeThrough(new TextDecoderStream()),
+        ),
+      ).toMatchSnapshot();
+    });
   });
 
   describe('result.toDataStreamResponse', () => {
@@ -1473,6 +1539,92 @@ describe('streamText', () => {
         ', ',
         'world!',
       ]);
+    });
+  });
+
+  describe('result.consumeStream', () => {
+    it('should ignore AbortError during stream consumption', async () => {
+      const result = streamText({
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-delta', textDelta: 'Hello' });
+              queueMicrotask(() => {
+                controller.error(
+                  Object.assign(new Error('Stream aborted'), {
+                    name: 'AbortError',
+                  }),
+                );
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should ignore ResponseAborted error during stream consumption', async () => {
+      const result = streamText({
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-delta', textDelta: 'Hello' });
+              queueMicrotask(() => {
+                controller.error(
+                  Object.assign(new Error('Response aborted'), {
+                    name: 'ResponseAborted',
+                  }),
+                );
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should ignore any errors during stream consumption', async () => {
+      const result = streamText({
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-delta', textDelta: 'Hello' });
+              queueMicrotask(() => {
+                controller.error(Object.assign(new Error('Some error')));
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(result.consumeStream()).resolves.not.toThrow();
+    });
+
+    it('should call the onError callback with the error', async () => {
+      const onErrorCallback = vi.fn();
+      const result = streamText({
+        model: createTestModel({
+          stream: new ReadableStream({
+            start(controller) {
+              controller.enqueue({ type: 'text-delta', textDelta: 'Hello' });
+              queueMicrotask(() => {
+                controller.error(Object.assign(new Error('Some error')));
+              });
+            },
+          }),
+        }),
+        prompt: 'test-input',
+      });
+
+      await expect(
+        result.consumeStream({ onError: onErrorCallback }),
+      ).resolves.not.toThrow();
+      expect(onErrorCallback).toHaveBeenCalledWith(new Error('Some error'));
     });
   });
 
@@ -1734,6 +1886,19 @@ describe('streamText', () => {
     });
   });
 
+  describe('result.files', () => {
+    it('should contain files', async () => {
+      const result = streamText({
+        model: modelWithFiles,
+        ...defaultSettings(),
+      });
+
+      result.consumeStream();
+
+      expect(await result.files).toMatchSnapshot();
+    });
+  });
+
   describe('result.steps', () => {
     it('should add the reasoning from the model response to the step result', async () => {
       const result = streamText({
@@ -1749,6 +1914,17 @@ describe('streamText', () => {
     it('should add the sources from the model response to the step result', async () => {
       const result = streamText({
         model: modelWithSources,
+        ...defaultSettings(),
+      });
+
+      result.consumeStream();
+
+      expect(await result.steps).toMatchSnapshot();
+    });
+
+    it('should add the files from the model response to the step result', async () => {
+      const result = streamText({
+        model: modelWithFiles,
         ...defaultSettings(),
       });
 
@@ -2006,11 +2182,10 @@ describe('streamText', () => {
             execute: async ({ value }) => `${value}-result`,
           },
         },
-        prompt: 'test-input',
         onFinish: async event => {
           result = event as unknown as typeof result;
         },
-        experimental_generateMessageId: mockId({ prefix: 'msg' }),
+        ...defaultSettings(),
       });
 
       await resultObject.consumeStream();
@@ -2025,15 +2200,28 @@ describe('streamText', () => {
 
       const resultObject = streamText({
         model: modelWithSources,
-        prompt: 'test-input',
         onFinish: async event => {
           result = event as unknown as typeof result;
         },
-        experimental_generateMessageId: mockId({ prefix: 'msg' }),
-        _internal: {
-          generateId: mockId({ prefix: 'id' }),
-          currentDate: () => new Date(0),
+        ...defaultSettings(),
+      });
+
+      await resultObject.consumeStream();
+
+      expect(result).toMatchSnapshot();
+    });
+
+    it('should send files', async () => {
+      let result!: Parameters<
+        Required<Parameters<typeof streamText>[0]>['onFinish']
+      >[0];
+
+      const resultObject = streamText({
+        model: modelWithFiles,
+        onFinish: async event => {
+          result = event as unknown as typeof result;
         },
+        ...defaultSettings(),
       });
 
       await resultObject.consumeStream();
@@ -2236,6 +2424,7 @@ describe('streamText', () => {
                           type: 'reasoning',
                           text: 'thinking',
                           providerMetadata: undefined,
+                          signature: undefined,
                         },
                         {
                           type: 'tool-call',

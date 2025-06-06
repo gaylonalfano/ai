@@ -26,6 +26,7 @@ import {
 } from '../types/usage';
 import { removeTextAfterLastWhitespace } from '../util/remove-text-after-last-whitespace';
 import { GenerateTextResult } from './generate-text-result';
+import { DefaultGeneratedFile, GeneratedFile } from './generated-file';
 import { Output } from './output';
 import { parseToolCall } from './parse-tool-call';
 import { asReasoningText, ReasoningDetail } from './reasoning-detail';
@@ -35,6 +36,7 @@ import { ToolCallArray } from './tool-call';
 import { ToolCallRepairFunction } from './tool-call-repair';
 import { ToolResultArray } from './tool-result';
 import { ToolSet } from './tool-set';
+import { stringifyForTelemetry } from '../prompt/stringify-for-telemetry';
 
 const originalGenerateId = createIdGenerator({
   prefix: 'aitxt',
@@ -124,6 +126,7 @@ export async function generateText<
   experimental_providerMetadata,
   providerOptions = experimental_providerMetadata,
   experimental_activeTools: activeTools,
+  experimental_prepareStep: prepareStep,
   experimental_repairToolCall: repairToolCall,
   _internal: {
     generateId = originalGenerateId,
@@ -198,6 +201,32 @@ Optional specification for parsing structured outputs from the LLM response.
     experimental_output?: Output<OUTPUT, OUTPUT_PARTIAL>;
 
     /**
+Optional function that you can use to provide different settings for a step.
+
+@param options - The options for the step.
+@param options.steps - The steps that have been executed so far.
+@param options.stepNumber - The number of the step that is being executed.
+@param options.maxSteps - The maximum number of steps.
+@param options.model - The model that is being used.
+
+@returns An object that contains the settings for the step.
+If you return undefined (or for undefined settings), the settings from the outer level will be used.
+    */
+    experimental_prepareStep?: (options: {
+      steps: Array<StepResult<TOOLS>>;
+      stepNumber: number;
+      maxSteps: number;
+      model: LanguageModel;
+    }) => PromiseLike<
+      | {
+          model?: LanguageModel;
+          toolChoice?: ToolChoice<TOOLS>;
+          experimental_activeTools?: Array<keyof TOOLS>;
+        }
+      | undefined
+    >;
+
+    /**
 A function that attempts to repair a tool call that failed to parse.
      */
     experimental_repairToolCall?: ToolCallRepairFunction<TOOLS>;
@@ -253,6 +282,9 @@ A function that attempts to repair a tool call that failed to parse.
           telemetry,
         }),
         ...baseTelemetryAttributes,
+        // model:
+        'ai.model.provider': model.provider,
+        'ai.model.id': model.modelId,
         // specific settings that only make sense on the outer level:
         'ai.prompt': {
           input: () => JSON.stringify({ system, prompt, messages }),
@@ -262,11 +294,6 @@ A function that attempts to repair a tool call that failed to parse.
     }),
     tracer,
     fn: async span => {
-      const mode = {
-        type: 'regular' as const,
-        ...prepareToolsAndToolChoice({ tools, toolChoice, activeTools }),
-      };
-
       const callSettings = prepareCallSettings(settings);
 
       let currentModelResponse: Awaited<
@@ -297,15 +324,36 @@ A function that attempts to repair a tool call that failed to parse.
           ...responseMessages,
         ];
 
+        const prepareStepResult = await prepareStep?.({
+          model,
+          steps,
+          maxSteps,
+          stepNumber: stepCount,
+        });
+
+        const stepToolChoice = prepareStepResult?.toolChoice ?? toolChoice;
+        const stepActiveTools =
+          prepareStepResult?.experimental_activeTools ?? activeTools;
+        const stepModel = prepareStepResult?.model ?? model;
+
         const promptMessages = await convertToLanguageModelPrompt({
           prompt: {
             type: promptFormat,
             system: initialPrompt.system,
             messages: stepInputMessages,
           },
-          modelSupportsImageUrls: model.supportsImageUrls,
-          modelSupportsUrl: model.supportsUrl?.bind(model), // support 'this' context
+          modelSupportsImageUrls: stepModel.supportsImageUrls,
+          modelSupportsUrl: stepModel.supportsUrl?.bind(stepModel), // support 'this' context
         });
+
+        const mode = {
+          type: 'regular' as const,
+          ...prepareToolsAndToolChoice({
+            tools,
+            toolChoice: stepToolChoice,
+            activeTools: stepActiveTools,
+          }),
+        };
 
         currentModelResponse = await retry(() =>
           recordSpan({
@@ -318,9 +366,13 @@ A function that attempts to repair a tool call that failed to parse.
                   telemetry,
                 }),
                 ...baseTelemetryAttributes,
+                // model:
+                'ai.model.provider': stepModel.provider,
+                'ai.model.id': stepModel.modelId,
+                // prompt:
                 'ai.prompt.format': { input: () => promptFormat },
                 'ai.prompt.messages': {
-                  input: () => JSON.stringify(promptMessages),
+                  input: () => stringifyForTelemetry(promptMessages),
                 },
                 'ai.prompt.tools': {
                   // convert the language model level tools:
@@ -334,8 +386,8 @@ A function that attempts to repair a tool call that failed to parse.
                 },
 
                 // standardized gen-ai llm span attributes:
-                'gen_ai.system': model.provider,
-                'gen_ai.request.model': model.modelId,
+                'gen_ai.system': stepModel.provider,
+                'gen_ai.request.model': stepModel.modelId,
                 'gen_ai.request.frequency_penalty': settings.frequencyPenalty,
                 'gen_ai.request.max_tokens': settings.maxTokens,
                 'gen_ai.request.presence_penalty': settings.presencePenalty,
@@ -347,7 +399,7 @@ A function that attempts to repair a tool call that failed to parse.
             }),
             tracer,
             fn: async span => {
-              const result = await model.doGenerate({
+              const result = await stepModel.doGenerate({
                 mode,
                 ...callSettings,
                 inputFormat: promptFormat,
@@ -362,7 +414,7 @@ A function that attempts to repair a tool call that failed to parse.
               const responseData = {
                 id: result.response?.id ?? generateId(),
                 timestamp: result.response?.timestamp ?? currentDate(),
-                modelId: result.response?.modelId ?? model.modelId,
+                modelId: result.response?.modelId ?? stepModel.modelId,
               };
 
               // Add response information to the span:
@@ -497,6 +549,7 @@ A function that attempts to repair a tool call that failed to parse.
           responseMessages.push(
             ...toResponseMessages({
               text,
+              files: asFiles(currentModelResponse.files),
               reasoning: asReasoningDetails(currentModelResponse.reasoning),
               tools: tools ?? ({} as TOOLS),
               toolCalls: currentToolCalls,
@@ -514,6 +567,7 @@ A function that attempts to repair a tool call that failed to parse.
           // TODO v5: rename reasoning to reasoningText (and use reasoning for composite array)
           reasoning: asReasoningText(currentReasoningDetails),
           reasoningDetails: currentReasoningDetails,
+          files: asFiles(currentModelResponse.files),
           sources: currentModelResponse.sources ?? [],
           toolCalls: currentToolCalls,
           toolResults: currentToolResults,
@@ -562,6 +616,7 @@ A function that attempts to repair a tool call that failed to parse.
 
       return new DefaultGenerateTextResult({
         text,
+        files: asFiles(currentModelResponse.files),
         reasoning: asReasoningText(currentReasoningDetails),
         reasoningDetails: currentReasoningDetails,
         sources,
@@ -572,7 +627,11 @@ A function that attempts to repair a tool call that failed to parse.
 
           return output.parseOutput(
             { text },
-            { response: currentModelResponse.response, usage },
+            {
+              response: currentModelResponse.response,
+              usage,
+              finishReason: currentModelResponse.finishReason,
+            },
           );
         },
         toolCalls: currentToolCalls,
@@ -692,6 +751,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
   implements GenerateTextResult<TOOLS, OUTPUT>
 {
   readonly text: GenerateTextResult<TOOLS, OUTPUT>['text'];
+  readonly files: GenerateTextResult<TOOLS, OUTPUT>['files'];
   readonly reasoning: GenerateTextResult<TOOLS, OUTPUT>['reasoning'];
   readonly reasoningDetails: GenerateTextResult<
     TOOLS,
@@ -723,6 +783,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
 
   constructor(options: {
     text: GenerateTextResult<TOOLS, OUTPUT>['text'];
+    files: GenerateTextResult<TOOLS, OUTPUT>['files'];
     reasoning: GenerateTextResult<TOOLS, OUTPUT>['reasoning'];
     reasoningDetails: GenerateTextResult<TOOLS, OUTPUT>['reasoningDetails'];
     toolCalls: GenerateTextResult<TOOLS, OUTPUT>['toolCalls'];
@@ -742,6 +803,7 @@ class DefaultGenerateTextResult<TOOLS extends ToolSet, OUTPUT>
     sources: GenerateTextResult<TOOLS, OUTPUT>['sources'];
   }) {
     this.text = options.text;
+    this.files = options.files;
     this.reasoning = options.reasoning;
     this.reasoningDetails = options.reasoningDetails;
     this.toolCalls = options.toolCalls;
@@ -785,4 +847,15 @@ function asReasoningDetails(
   }
 
   return reasoning;
+}
+
+function asFiles(
+  files:
+    | Array<{
+        data: string | Uint8Array;
+        mimeType: string;
+      }>
+    | undefined,
+): Array<GeneratedFile> {
+  return files?.map(file => new DefaultGeneratedFile(file)) ?? [];
 }
