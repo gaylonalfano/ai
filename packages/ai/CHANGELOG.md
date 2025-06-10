@@ -1,5 +1,277 @@
 # ai
 
+## 4.3.16
+
+### Patch Changes
+
+- ed0ebeb: Avoid JSON.strinfigy on UInt8Arrays for telemetry
+
+## 4.3.15
+
+### Patch Changes
+
+- Updated dependencies [d87b9d1]
+  - @ai-sdk/provider-utils@2.2.8
+  - @ai-sdk/react@1.2.12
+  - @ai-sdk/ui-utils@1.2.11
+
+## 4.3.14
+
+### Patch Changes
+
+- a295521: feat(message-validator): include more details in error messages
+
+## 4.3.13
+
+### Patch Changes
+
+- Updated dependencies [6c59ae7]
+  - @ai-sdk/ui-utils@1.2.10
+  - @ai-sdk/react@1.2.11
+
+## 4.3.12
+
+### Patch Changes
+
+- 1ed3755: fix (ai): don't publish mcp-stdio TypeScript files
+- 46cb332: chore (ai/mcp): add `assertCapability` method to experimental MCP client
+
+## 4.3.11
+
+### Patch Changes
+
+- Updated dependencies [77b2097]
+- Updated dependencies [62181ef]
+  - @ai-sdk/react@1.2.10
+  - @ai-sdk/ui-utils@1.2.9
+
+## 4.3.10
+
+### Patch Changes
+
+- 0432959: feat (ai): add experimental prepareStep callback to generateText
+
+## 4.3.9
+
+### Patch Changes
+
+- b69a253: fix(utils/detect-mimetype): add support for detecting id3 tags
+
+## 4.3.8
+
+### Patch Changes
+
+- 6e8a73b: feat(providers/fal): add transcribe
+
+## 4.3.7
+
+### Patch Changes
+
+- f4f3945: fix (ai/core): refactor `toResponseMessages` to filter out empty string/content
+
+## 4.3.6
+
+### Patch Changes
+
+- beef951: feat: add speech with experimental_generateSpeech
+- bd41167: fix(ai/core): properly handle custom separator in provider registry
+- Updated dependencies [beef951]
+  - @ai-sdk/provider@1.1.3
+  - @ai-sdk/provider-utils@2.2.7
+  - @ai-sdk/ui-utils@1.2.8
+  - @ai-sdk/react@1.2.9
+
+## 4.3.5
+
+### Patch Changes
+
+- 452bf12: fix (ai/mcp): better support for zero-argument MCP tools
+
+## 4.3.4
+
+### Patch Changes
+
+- 013faa8: core (ai): change transcription model mimeType to mediaType
+- Updated dependencies [013faa8]
+  - @ai-sdk/provider@1.1.2
+  - @ai-sdk/provider-utils@2.2.6
+  - @ai-sdk/ui-utils@1.2.7
+  - @ai-sdk/react@1.2.8
+
+## 4.3.3
+
+### Patch Changes
+
+- 3e88f4d: fix (ai/mcp): prevent mutation of customEnv
+- c21fa6d: feat: add transcription with experimental_transcribe
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/provider@1.1.1
+  - @ai-sdk/react@1.2.7
+  - @ai-sdk/ui-utils@1.2.6
+
+## 4.3.2
+
+### Patch Changes
+
+- 665a567: fix (core): improve error handling in streamText's consumeStream method
+
+## 4.3.1
+
+### Patch Changes
+
+- 3d1bd38: feat(smooth-stream): chunking callbacks
+
+## 4.3.0
+
+### Minor Changes
+
+- 772a2d7: feat (core): Add finishReason field to NoObjectGeneratedError
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+  - @ai-sdk/react@1.2.6
+  - @ai-sdk/ui-utils@1.2.5
+
+## 4.2.11
+
+### Patch Changes
+
+- c45d100: fix (core): send buffered text in smooth stream when stream parts change
+
+## 4.2.10
+
+### Patch Changes
+
+- Updated dependencies [a043b14]
+- Updated dependencies [28be004]
+  - @ai-sdk/react@1.2.5
+  - @ai-sdk/provider-utils@2.2.3
+  - @ai-sdk/ui-utils@1.2.4
+
+## 4.2.9
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+  - @ai-sdk/react@1.2.4
+  - @ai-sdk/ui-utils@1.2.3
+
+## 4.2.8
+
+### Patch Changes
+
+- 65243ce: fix (ui): introduce step start parts
+- Updated dependencies [65243ce]
+  - @ai-sdk/ui-utils@1.2.2
+  - @ai-sdk/react@1.2.3
+
+## 4.2.7
+
+### Patch Changes
+
+- e14c066: fix (ai/core): convert user ui messages with only parts (no content) to core messages
+
+## 4.2.6
+
+### Patch Changes
+
+- 625591b: feat (ai/core): auto-complete for provider registry
+- 6a1506f: feat (ai/core): custom separator support for provider registry
+- ea3d998: chore (ai/core): move provider registry to stable
+
+## 4.2.5
+
+### Patch Changes
+
+- Updated dependencies [d92fa29]
+  - @ai-sdk/react@1.2.2
+
+## 4.2.4
+
+### Patch Changes
+
+- 3d6d96d: fix (ai/core): validate that messages are not empty
+
+## 4.2.3
+
+### Patch Changes
+
+- 0b3bf29: fix (ai/core): custom env support for stdio MCP transport
+
+## 4.2.2
+
+### Patch Changes
+
+- f10f0fa: fix (provider-utils): improve event source stream parsing performance
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+  - @ai-sdk/react@1.2.1
+  - @ai-sdk/ui-utils@1.2.1
+
+## 4.2.1
+
+### Patch Changes
+
+- b796152: feat (ai/core): add headers to MCP SSE transport
+- 06361d6: feat (ai/core): expose JSON RPC types (MCP)
+
+## 4.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+  - @ai-sdk/react@1.2.0
+  - @ai-sdk/ui-utils@1.2.0
+
+## 4.1.66
+
+### Patch Changes
+
+- 5d0fc29: chore (ai): improve cosine similarity calculation
+
+## 4.1.65
+
+### Patch Changes
+
+- 16c444f: fix (ai): expose ai/mcp-stdio
+
+## 4.1.64
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+  - @ai-sdk/react@1.1.25
+  - @ai-sdk/ui-utils@1.1.21
+
+## 4.1.63
+
+### Patch Changes
+
+- 0bd5bc6: feat (ai): support model-generated files
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/provider-utils@2.1.14
+  - @ai-sdk/ui-utils@1.1.20
+  - @ai-sdk/react@1.1.24
+
+## 4.1.62
+
+### Patch Changes
+
+- c9ed3c4: feat: enable custom mcp transports
+  breaking change: remove internal stdio transport creation
+
 ## 4.1.61
 
 ### Patch Changes

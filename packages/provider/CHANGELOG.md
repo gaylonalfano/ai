@@ -1,5 +1,35 @@
 # @ai-sdk/provider
 
+## 1.1.3
+
+### Patch Changes
+
+- beef951: feat: add speech with experimental_generateSpeech
+
+## 1.1.2
+
+### Patch Changes
+
+- 013faa8: core (ai): change transcription model mimeType to mediaType
+
+## 1.1.1
+
+### Patch Changes
+
+- c21fa6d: feat: add transcription with experimental_transcribe
+
+## 1.1.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+## 1.0.12
+
+### Patch Changes
+
+- 0bd5bc6: feat (ai): support model-generated files
+
 ## 1.0.11
 
 ### Patch Changes
