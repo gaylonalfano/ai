@@ -161,6 +161,9 @@ By default, it's set to 1, which means that only a single LLM call is made.
   }) => unknown;
 };
 
+/**
+ * @deprecated `@ai-sdk/solid` has been deprecated and will be removed in AI SDK 5.
+ */
 export function useChat(
   rawUseChatOptions: UseChatOptions | Accessor<UseChatOptions> = {},
 ): UseChatHelpers {
@@ -372,7 +375,12 @@ export function useChat(
 
   const append: UseChatHelpers['append'] = async (
     message,
-    { data, headers, body, experimental_attachments } = {},
+    {
+      data,
+      headers,
+      body,
+      experimental_attachments = message.experimental_attachments,
+    } = {},
   ) => {
     const attachmentsForRequest = await prepareAttachmentsForRequest(
       experimental_attachments,
@@ -512,6 +520,11 @@ export function useChat(
     });
 
     mutate(currentMessages);
+
+    // when the request is ongoing, the auto-submit will be triggered after the request is finished
+    if (status() === 'submitted' || status() === 'streaming') {
+      return;
+    }
 
     // auto-submit when all tool calls in the last assistant message have results:
     const lastMessage = currentMessages[currentMessages.length - 1];

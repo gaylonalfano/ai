@@ -4,9 +4,11 @@ import { DataStreamString, formatDataStreamPart } from '@ai-sdk/ui-utils';
 import { Span } from '@opentelemetry/api';
 import { ServerResponse } from 'node:http';
 import { InvalidArgumentError } from '../../errors/invalid-argument-error';
+import { InvalidStreamPartError } from '../../errors/invalid-stream-part-error';
 import { NoOutputSpecifiedError } from '../../errors/no-output-specified-error';
 import { StreamData } from '../../streams/stream-data';
 import { asArray } from '../../util/as-array';
+import { consumeStream } from '../../util/consume-stream';
 import { DelayedPromise } from '../../util/delayed-promise';
 import { DataStreamWriter } from '../data-stream/data-stream-writer';
 import { CallSettings } from '../prompt/call-settings';
@@ -43,6 +45,7 @@ import { prepareOutgoingHttpHeaders } from '../util/prepare-outgoing-http-header
 import { prepareResponseHeaders } from '../util/prepare-response-headers';
 import { splitOnLastWhitespace } from '../util/split-on-last-whitespace';
 import { writeToServerResponse } from '../util/write-to-server-response';
+import { GeneratedFile } from './generated-file';
 import { Output } from './output';
 import { asReasoningText, ReasoningDetail } from './reasoning-detail';
 import {
@@ -51,6 +54,7 @@ import {
 } from './run-tools-transformation';
 import { ResponseMessage, StepResult } from './step-result';
 import {
+  ConsumeStreamOptions,
   DataStreamOptions,
   StreamTextResult,
   TextStreamPart,
@@ -60,7 +64,7 @@ import { ToolCallUnion } from './tool-call';
 import { ToolCallRepairFunction } from './tool-call-repair';
 import { ToolResultUnion } from './tool-result';
 import { ToolSet } from './tool-set';
-import { InvalidStreamPartError } from '../../errors/invalid-stream-part-error';
+import { stringifyForTelemetry } from '../prompt/stringify-for-telemetry';
 
 const originalGenerateId = createIdGenerator({
   prefix: 'aitxt',
@@ -491,6 +495,9 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
   private readonly sourcesPromise = new DelayedPromise<
     Awaited<StreamTextResult<TOOLS, PARTIAL_OUTPUT>['sources']>
   >();
+  private readonly filesPromise = new DelayedPromise<
+    Awaited<StreamTextResult<TOOLS, PARTIAL_OUTPUT>['files']>
+  >();
   private readonly toolCallsPromise = new DelayedPromise<
     Awaited<StreamTextResult<TOOLS, PARTIAL_OUTPUT>['toolCalls']>
   >();
@@ -594,6 +601,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
     let recordedFullText = '';
 
     let stepReasoning: Array<ReasoningDetail> = [];
+    let stepFiles: Array<GeneratedFile> = [];
     let activeReasoningText: undefined | (ReasoningDetail & { type: 'text' }) =
       undefined;
 
@@ -672,6 +680,10 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
           stepReasoning.push({ type: 'redacted', data: part.data });
         }
 
+        if (part.type === 'file') {
+          stepFiles.push(part);
+        }
+
         if (part.type === 'source') {
           recordedSources.push(part.source);
           recordedStepSources.push(part.source);
@@ -688,6 +700,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
         if (part.type === 'step-finish') {
           const stepMessages = toResponseMessages({
             text: recordedContinuationText,
+            files: stepFiles,
             reasoning: stepReasoning,
             tools: tools ?? ({} as TOOLS),
             toolCalls: recordedToolCalls,
@@ -723,6 +736,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
             text: recordedStepText,
             reasoning: asReasoningText(stepReasoning),
             reasoningDetails: stepReasoning,
+            files: stepFiles,
             sources: recordedStepSources,
             toolCalls: recordedToolCalls,
             toolResults: recordedToolResults,
@@ -749,6 +763,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
           recordedStepText = '';
           recordedStepSources = [];
           stepReasoning = [];
+          stepFiles = [];
           activeReasoningText = undefined;
 
           if (nextStepType !== 'done') {
@@ -806,6 +821,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
           // aggregate results:
           self.textPromise.resolve(recordedFullText);
           self.sourcesPromise.resolve(recordedSources);
+          self.filesPromise.resolve(lastStep.files);
           self.stepsPromise.resolve(recordedSteps);
 
           // call onFinish callback:
@@ -816,6 +832,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
             text: recordedFullText,
             reasoning: lastStep.reasoning,
             reasoningDetails: lastStep.reasoningDetails,
+            files: lastStep.files,
             sources: lastStep.sources,
             toolCalls: lastStep.toolCalls,
             toolResults: lastStep.toolResults,
@@ -982,7 +999,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
                     input: () => promptFormat,
                   },
                   'ai.prompt.messages': {
-                    input: () => JSON.stringify(promptMessages),
+                    input: () => stringifyForTelemetry(promptMessages),
                   },
                   'ai.prompt.tools': {
                     // convert the language model level tools:
@@ -1043,6 +1060,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
           const stepToolResults: ToolResultUnion<TOOLS>[] = [];
 
           const stepReasoning: Array<ReasoningDetail> = [];
+          const stepFiles: Array<GeneratedFile> = [];
           let activeReasoningText:
             | undefined
             | (ReasoningDetail & { type: 'text' }) = undefined;
@@ -1247,6 +1265,12 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
                       break;
                     }
 
+                    case 'file': {
+                      stepFiles.push(chunk);
+                      controller.enqueue(chunk);
+                      break;
+                    }
+
                     // forward:
                     case 'source':
                     case 'tool-call-streaming-start':
@@ -1407,6 +1431,7 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
                       responseMessages.push(
                         ...toResponseMessages({
                           text: stepText,
+                          files: stepFiles,
                           reasoning: stepReasoning,
                           tools: tools ?? ({} as TOOLS),
                           toolCalls: stepToolCalls,
@@ -1502,6 +1527,10 @@ class DefaultStreamTextResult<TOOLS extends ToolSet, OUTPUT, PARTIAL_OUTPUT>
     return this.sourcesPromise.value;
   }
 
+  get files() {
+    return this.filesPromise.value;
+  }
+
   get toolCalls() {
     return this.toolCallsPromise.value;
   }
@@ -1565,10 +1594,14 @@ However, the LLM results are expected to be small enough to not cause issues.
     );
   }
 
-  async consumeStream(): Promise<void> {
-    const stream = this.fullStream;
-    for await (const part of stream) {
-      // no op
+  async consumeStream(options?: ConsumeStreamOptions): Promise<void> {
+    try {
+      await consumeStream({
+        stream: this.fullStream,
+        onError: options?.onError,
+      });
+    } catch (error) {
+      options?.onError?.(error);
     }
   }
 
@@ -1644,6 +1677,16 @@ However, the LLM results are expected to be small enough to not cause issues.
                   }),
                 );
               }
+              break;
+            }
+
+            case 'file': {
+              controller.enqueue(
+                formatDataStreamPart('file', {
+                  mimeType: chunk.mimeType,
+                  data: chunk.base64,
+                }),
+              );
               break;
             }
 

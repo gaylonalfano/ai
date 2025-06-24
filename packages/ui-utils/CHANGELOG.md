@@ -1,5 +1,109 @@
 # @ai-sdk/ui-utils
 
+## 1.2.11
+
+### Patch Changes
+
+- Updated dependencies [d87b9d1]
+  - @ai-sdk/provider-utils@2.2.8
+
+## 1.2.10
+
+### Patch Changes
+
+- 6c59ae7: feat (ui/react): support resuming an ongoing stream
+
+## 1.2.9
+
+### Patch Changes
+
+- 62181ef: fix(react-native): support experimental_attachments without FileList global
+
+## 1.2.8
+
+### Patch Changes
+
+- Updated dependencies [beef951]
+  - @ai-sdk/provider@1.1.3
+  - @ai-sdk/provider-utils@2.2.7
+
+## 1.2.7
+
+### Patch Changes
+
+- Updated dependencies [013faa8]
+  - @ai-sdk/provider@1.1.2
+  - @ai-sdk/provider-utils@2.2.6
+
+## 1.2.6
+
+### Patch Changes
+
+- Updated dependencies [c21fa6d]
+  - @ai-sdk/provider-utils@2.2.5
+  - @ai-sdk/provider@1.1.1
+
+## 1.2.5
+
+### Patch Changes
+
+- Updated dependencies [2c19b9a]
+  - @ai-sdk/provider-utils@2.2.4
+
+## 1.2.4
+
+### Patch Changes
+
+- Updated dependencies [28be004]
+  - @ai-sdk/provider-utils@2.2.3
+
+## 1.2.3
+
+### Patch Changes
+
+- Updated dependencies [b01120e]
+  - @ai-sdk/provider-utils@2.2.2
+
+## 1.2.2
+
+### Patch Changes
+
+- 65243ce: fix (ui): introduce step start parts
+
+## 1.2.1
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - @ai-sdk/provider-utils@2.2.1
+
+## 1.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - @ai-sdk/provider@1.1.0
+  - @ai-sdk/provider-utils@2.2.0
+
+## 1.1.21
+
+### Patch Changes
+
+- Updated dependencies [d0c4659]
+  - @ai-sdk/provider-utils@2.1.15
+
+## 1.1.20
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - @ai-sdk/provider@1.0.12
+  - @ai-sdk/provider-utils@2.1.14
+
 ## 1.1.19
 
 ### Patch Changes
