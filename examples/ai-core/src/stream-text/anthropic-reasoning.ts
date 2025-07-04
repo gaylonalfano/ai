@@ -1,4 +1,4 @@
-import { anthropic } from '@ai-sdk/anthropic';
+import { anthropic, AnthropicProviderOptions } from '@ai-sdk/anthropic';
 import { streamText } from 'ai';
 import 'dotenv/config';
 
@@ -13,18 +13,20 @@ async function main() {
     providerOptions: {
       anthropic: {
         thinking: { type: 'enabled', budgetTokens: 12000 },
-      },
+      } satisfies AnthropicProviderOptions,
     },
     maxRetries: 0,
   });
 
   for await (const part of result.fullStream) {
     if (part.type === 'reasoning') {
-      process.stdout.write('\x1b[34m' + part.textDelta + '\x1b[0m');
-    } else if (part.type === 'redacted-reasoning') {
-      process.stdout.write('\x1b[31m' + '<redacted>' + '\x1b[0m');
-    } else if (part.type === 'text-delta') {
-      process.stdout.write(part.textDelta);
+      process.stdout.write('\x1b[34m' + part.text + '\x1b[0m');
+
+      if (part.providerMetadata?.anthropic?.redactedData != null) {
+        process.stdout.write('\x1b[31m' + '<redacted>' + '\x1b[0m');
+      }
+    } else if (part.type === 'text') {
+      process.stdout.write(part.text);
     }
   }
 

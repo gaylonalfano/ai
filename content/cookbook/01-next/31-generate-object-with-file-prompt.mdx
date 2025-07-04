@@ -88,13 +88,13 @@ export async function POST(request: Request) {
           {
             type: 'file',
             data: await file.arrayBuffer(),
-            mimeType: 'application/pdf',
+            mediaType: 'application/pdf',
           },
         ],
       },
     ],
     schema: z.object({
-      summary: z.string().describe('A 50 word sumamry of the PDF.'),
+      summary: z.string().describe('A 50 word summary of the PDF.'),
     }),
   });
 

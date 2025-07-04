@@ -1,60 +1,34 @@
-import type { IOType } from 'node:child_process';
-import type { Stream } from 'node:stream';
-import { z } from 'zod';
-import {
-  inferParameters,
-  Tool,
-  ToolExecutionOptions,
-  ToolParameters,
-} from '../tool';
+import { z } from 'zod/v4';
+import { JSONObject } from '@ai-sdk/provider';
+import { FlexibleSchema, Tool } from '@ai-sdk/provider-utils';
 
-export const LATEST_PROTOCOL_VERSION = '2024-11-05';
+export const LATEST_PROTOCOL_VERSION = '2025-03-26';
 export const SUPPORTED_PROTOCOL_VERSIONS = [
   LATEST_PROTOCOL_VERSION,
-  '2024-10-07',
+  '2024-11-05',
 ];
-const JSONRPC_VERSION = '2.0';
 
 export type ToolSchemas =
-  | Record<string, { parameters: ToolParameters }>
+  | Record<string, { inputSchema: FlexibleSchema<JSONObject | unknown> }>
   | 'automatic'
   | undefined;
 
-export type McpToolSet<TOOL_SCHEMAS extends ToolSchemas = 'automatic'> =
-  TOOL_SCHEMAS extends Record<string, { parameters: ToolParameters }>
-    ? {
-        [K in keyof TOOL_SCHEMAS]: Tool<
-          TOOL_SCHEMAS[K]['parameters'],
-          CallToolResult
-        > & {
-          execute: (
-            args: inferParameters<TOOL_SCHEMAS[K]['parameters']>,
-            options: ToolExecutionOptions,
-          ) => PromiseLike<CallToolResult>;
-        };
-      }
-    : {
-        [k: string]: Tool<z.ZodUnknown, CallToolResult> & {
-          execute: (
-            args: unknown,
-            options: ToolExecutionOptions,
-          ) => PromiseLike<CallToolResult>;
-        };
-      };
+type MappedTool<T extends Tool | JSONObject, OUTPUT extends any> =
+  T extends Tool<infer INPUT>
+    ? Tool<INPUT, OUTPUT>
+    : T extends JSONObject
+      ? Tool<T, OUTPUT>
+      : never;
 
-export interface McpStdioServerConfig {
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-  stderr?: IOType | Stream | number;
-  cwd?: string;
-  type: 'stdio';
-}
-export interface McpSSEServerConfig {
-  type: 'sse';
-  url: string;
-}
-export type TransportConfig = McpStdioServerConfig | McpSSEServerConfig;
+export type McpToolSet<TOOL_SCHEMAS extends ToolSchemas = 'automatic'> =
+  TOOL_SCHEMAS extends Record<string, { inputSchema: FlexibleSchema<unknown> }>
+    ? {
+        [K in keyof TOOL_SCHEMAS]: MappedTool<TOOL_SCHEMAS[K], CallToolResult> &
+          Required<
+            Pick<MappedTool<TOOL_SCHEMAS[K], CallToolResult>, 'execute'>
+          >;
+      }
+    : McpToolSet<Record<string, { inputSchema: FlexibleSchema<unknown> }>>;
 
 const ClientOrServerImplementationSchema = z
   .object({
@@ -64,89 +38,26 @@ const ClientOrServerImplementationSchema = z
   .passthrough();
 export type Configuration = z.infer<typeof ClientOrServerImplementationSchema>;
 
-const BaseParamsSchema = z
+export const BaseParamsSchema = z
   .object({
     _meta: z.optional(z.object({}).passthrough()),
   })
   .passthrough();
 type BaseParams = z.infer<typeof BaseParamsSchema>;
+export const ResultSchema = BaseParamsSchema;
 
-export interface Request {
-  method: string;
-  params?: BaseParams;
-}
-
+export const RequestSchema = z.object({
+  method: z.string(),
+  params: z.optional(BaseParamsSchema),
+});
+export type Request = z.infer<typeof RequestSchema>;
 export type RequestOptions = {
   signal?: AbortSignal;
   timeout?: number;
   maxTotalTimeout?: number;
 };
 
-const RequestSchema = z.object({
-  method: z.string(),
-  params: z.optional(BaseParamsSchema),
-});
-const ResultSchema = BaseParamsSchema;
-const NotificationSchema = z.object({
-  method: z.string(),
-  params: z.optional(BaseParamsSchema),
-});
-
-export type Notification = z.infer<typeof NotificationSchema>;
-
-const RequestIdSchema = z.union([z.string(), z.number().int()]);
-const JSONRPCRequestSchema = z
-  .object({
-    jsonrpc: z.literal(JSONRPC_VERSION),
-    id: RequestIdSchema,
-  })
-  .merge(RequestSchema)
-  .strict();
-export type JSONRPCRequest = z.infer<typeof JSONRPCRequestSchema>;
-const JSONRPCResponseSchema = z
-  .object({
-    jsonrpc: z.literal(JSONRPC_VERSION),
-    id: RequestIdSchema,
-    result: ResultSchema,
-  })
-  .strict();
-export type JSONRPCResponse = z.infer<typeof JSONRPCResponseSchema>;
-const JSONRPCErrorSchema = z
-  .object({
-    jsonrpc: z.literal(JSONRPC_VERSION),
-    id: RequestIdSchema,
-    error: z.object({
-      code: z.number().int(),
-      message: z.string(),
-      data: z.optional(z.unknown()),
-    }),
-  })
-  .strict();
-export type JSONRPCError = z.infer<typeof JSONRPCErrorSchema>;
-const JSONRPCNotificationSchema = z
-  .object({
-    jsonrpc: z.literal(JSONRPC_VERSION),
-  })
-  .merge(NotificationSchema)
-  .strict();
-export type JSONRPCNotification = z.infer<typeof JSONRPCNotificationSchema>;
-
-export const JSONRPCMessageSchema = z.union([
-  JSONRPCRequestSchema,
-  JSONRPCNotificationSchema,
-  JSONRPCResponseSchema,
-  JSONRPCErrorSchema,
-]);
-export type JSONRPCMessage = z.infer<typeof JSONRPCMessageSchema>;
-
-export interface MCPTransport {
-  start(): Promise<void>;
-  send(message: JSONRPCMessage): Promise<void>;
-  close(): Promise<void>;
-  onClose?: () => void;
-  onError?: (error: Error) => void;
-  onMessage?: (message: JSONRPCMessage) => void;
-}
+export type Notification = z.infer<typeof RequestSchema>;
 
 const ServerCapabilitiesSchema = z
   .object({
@@ -177,6 +88,7 @@ const ServerCapabilitiesSchema = z
   })
   .passthrough();
 export type ServerCapabilities = z.infer<typeof ServerCapabilitiesSchema>;
+
 export const InitializeResultSchema = ResultSchema.extend({
   protocolVersion: z.string(),
   capabilities: ServerCapabilitiesSchema,

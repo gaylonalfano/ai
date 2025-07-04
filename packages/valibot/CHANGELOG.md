@@ -1,5 +1,412 @@
 # @ai-sdk/valibot
 
+## 1.0.0-beta.2
+
+### Patch Changes
+
+- Updated dependencies [0571b98]
+- Updated dependencies [39a4fab]
+- Updated dependencies [d1a034f]
+  - @ai-sdk/provider-utils@3.0.0-beta.2
+
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- Updated dependencies [45c1ea2]
+- Updated dependencies [e025824]
+- Updated dependencies [bfdca8d]
+- Updated dependencies [71f938d]
+- Updated dependencies [28a5ed5]
+  - @ai-sdk/provider-utils@3.0.0-beta.1
+
+## 1.0.0-alpha.15
+
+### Patch Changes
+
+- Updated dependencies [8ba77a7]
+  - @ai-sdk/provider-utils@3.0.0-alpha.15
+
+## 1.0.0-alpha.14
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.14
+
+## 1.0.0-alpha.13
+
+### Patch Changes
+
+- d7cb6b4: chore (valibot): update to valibot 1.1
+  - @ai-sdk/provider-utils@3.0.0-alpha.13
+
+## 1.0.0-alpha.12
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.12
+
+## 1.0.0-alpha.11
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.11
+
+## 1.0.0-alpha.10
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.10
+
+## 1.0.0-alpha.9
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.9
+
+## 1.0.0-alpha.8
+
+### Patch Changes
+
+- Updated dependencies [4fef487]
+  - @ai-sdk/provider-utils@3.0.0-alpha.8
+
+## 1.0.0-alpha.7
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.7
+
+## 1.0.0-alpha.6
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.6
+
+## 1.0.0-alpha.4
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.4
+
+## 1.0.0-alpha.3
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.3
+
+## 1.0.0-alpha.2
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.2
+
+## 1.0.0-alpha.1
+
+### Patch Changes
+
+- @ai-sdk/provider-utils@3.0.0-alpha.1
+
+## 1.0.0-canary.21
+
+### Patch Changes
+
+- Updated dependencies [faf8446]
+  - @ai-sdk/provider-utils@3.0.0-canary.19
+
+## 1.0.0-canary.20
+
+### Patch Changes
+
+- Updated dependencies [40acf9b]
+  - @ai-sdk/provider-utils@3.0.0-canary.18
+
+## 1.0.0-canary.19
+
+### Patch Changes
+
+- Updated dependencies [ea7a7c9]
+  - @ai-sdk/provider-utils@3.0.0-canary.17
+
+## 1.0.0-canary.18
+
+### Patch Changes
+
+- Updated dependencies [87b828f]
+  - @ai-sdk/provider-utils@3.0.0-canary.16
+
+## 1.0.0-canary.17
+
+### Patch Changes
+
+- Updated dependencies [a571d6e]
+- Updated dependencies [41fa418]
+  - @ai-sdk/provider-utils@3.0.0-canary.15
+
+## 1.0.0-canary.16
+
+### Patch Changes
+
+- Updated dependencies [957b739]
+  - @ai-sdk/provider-utils@3.0.0-canary.14
+
+## 1.0.0-canary.15
+
+### Patch Changes
+
+- 0ff02bb: chore(provider-utils): move over jsonSchema
+- Updated dependencies [0ff02bb]
+  - @ai-sdk/provider-utils@3.0.0-canary.13
+
+## 1.0.0-canary.14
+
+### Patch Changes
+
+- Updated dependencies [9bf7291]
+- Updated dependencies [4617fab]
+- Updated dependencies [a76a62b]
+  - ai@5.0.0-canary.14
+
+## 1.0.0-canary.13
+
+### Patch Changes
+
+- Updated dependencies [14cb3be]
+- Updated dependencies [66962ed]
+- Updated dependencies [9301f86]
+  - ai@5.0.0-canary.13
+
+## 1.0.0-canary.12
+
+### Patch Changes
+
+- ai@5.0.0-canary.12
+
+## 1.0.0-canary.11
+
+### Patch Changes
+
+- Updated dependencies [8e64e9c]
+  - ai@5.0.0-canary.11
+
+## 1.0.0-canary.10
+
+### Patch Changes
+
+- Updated dependencies [d8aeaef]
+- Updated dependencies [3e10408]
+  - ai@5.0.0-canary.10
+
+## 1.0.0-canary.9
+
+### Patch Changes
+
+- Updated dependencies [a847c3e]
+- Updated dependencies [cb9c9e4]
+- Updated dependencies [8aa9e20]
+- Updated dependencies [b32e192]
+  - ai@5.0.0-canary.9
+
+## 1.0.0-canary.8
+
+### Patch Changes
+
+- Updated dependencies [5d1e3ba]
+- Updated dependencies [26735b5]
+- Updated dependencies [14c9410]
+- Updated dependencies [7827a49]
+- Updated dependencies [bd8a36c]
+- Updated dependencies [b6f9f3c]
+- Updated dependencies [92c8e66]
+- Updated dependencies [fd65bc6]
+- Updated dependencies [5bdff05]
+  - ai@5.0.0-canary.8
+
+## 1.0.0-canary.7
+
+### Patch Changes
+
+- Updated dependencies [0b78e17]
+- Updated dependencies [6fba4c7]
+- Updated dependencies [3e3b9df]
+- Updated dependencies [1766ede]
+- Updated dependencies [f10304b]
+  - ai@5.0.0-canary.7
+
+## 1.0.0-canary.6
+
+### Patch Changes
+
+- ai@5.0.0-canary.6
+
+## 1.0.0-canary.5
+
+### Patch Changes
+
+- Updated dependencies [b71fe8d]
+- Updated dependencies [d91b50d]
+  - ai@5.0.0-canary.5
+
+## 1.0.0-canary.4
+
+### Patch Changes
+
+- Updated dependencies [e1cbf8a]
+- Updated dependencies [225f087]
+- Updated dependencies [a166433]
+- Updated dependencies [0a87932]
+  - ai@5.0.0-canary.4
+
+## 1.0.0-canary.3
+
+### Patch Changes
+
+- ai@5.0.0-canary.3
+
+## 1.0.0-canary.2
+
+### Patch Changes
+
+- Updated dependencies [bd398e4]
+  - ai@5.0.0-canary.2
+
+## 1.0.0-canary.1
+
+### Patch Changes
+
+- Updated dependencies [c22ad54]
+- Updated dependencies [b7eae2d]
+- Updated dependencies [a4f3007]
+  - ai@5.0.0-canary.1
+
+## 1.0.0-canary.0
+
+### Major Changes
+
+- d5f588f: AI SDK 5
+
+### Patch Changes
+
+- Updated dependencies [d5f588f]
+- Updated dependencies [9477ebb]
+- Updated dependencies [8026705]
+  - ai@5.0.0-canary.0
+
+## 0.1.10
+
+### Patch Changes
+
+- ai@4.2.10
+
+## 0.1.9
+
+### Patch Changes
+
+- ai@4.2.9
+
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [65243ce]
+  - ai@4.2.8
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [e14c066]
+  - ai@4.2.7
+
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [625591b]
+- Updated dependencies [6a1506f]
+- Updated dependencies [ea3d998]
+  - ai@4.2.6
+
+## 0.1.5
+
+### Patch Changes
+
+- ai@4.2.5
+
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [3d6d96d]
+  - ai@4.2.4
+
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [0b3bf29]
+  - ai@4.2.3
+
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [f10f0fa]
+  - ai@4.2.2
+
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [b796152]
+- Updated dependencies [06361d6]
+  - ai@4.2.1
+
+## 0.1.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
+### Patch Changes
+
+- Updated dependencies [5bc638d]
+  - ai@4.2.0
+
+## 0.0.33
+
+### Patch Changes
+
+- Updated dependencies [5d0fc29]
+  - ai@4.1.66
+
+## 0.0.32
+
+### Patch Changes
+
+- Updated dependencies [16c444f]
+  - ai@4.1.65
+
+## 0.0.31
+
+### Patch Changes
+
+- ai@4.1.64
+
+## 0.0.30
+
+### Patch Changes
+
+- Updated dependencies [0bd5bc6]
+  - ai@4.1.63
+
+## 0.0.29
+
+### Patch Changes
+
+- Updated dependencies [c9ed3c4]
+  - ai@4.1.62
+
 ## 0.0.28
 
 ### Patch Changes

@@ -1,17 +1,20 @@
 'use client';
 
+import ChatInput from '@/component/chat-input';
+import { UIMessage, useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { createIdGenerator } from 'ai';
-import { Message, useChat } from '@ai-sdk/react';
 
 export default function Chat({
   id,
   initialMessages,
-}: { id?: string | undefined; initialMessages?: Message[] } = {}) {
-  const { input, status, handleInputChange, handleSubmit, messages } = useChat({
-    api: '/api/use-chat-resilient-persistence',
-    id, // use the provided chatId
-    initialMessages, // initial messages if provided
-    sendExtraMessageFields: true, // send id and createdAt for each message
+}: { id?: string | undefined; initialMessages?: UIMessage[] } = {}) {
+  const { sendMessage, status, messages, stop } = useChat({
+    id,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({
+      api: '/api/use-chat-resilient-persistence',
+    }),
     generateId: createIdGenerator({ prefix: 'msgc', size: 16 }), // id format for client-side messages
   });
 
@@ -20,19 +23,17 @@ export default function Chat({
       {messages.map(m => (
         <div key={m.id} className="whitespace-pre-wrap">
           {m.role === 'user' ? 'User: ' : 'AI: '}
-          {m.content}
+          {m.parts
+            .map(part => (part.type === 'text' ? part.text : ''))
+            .join('')}
         </div>
       ))}
 
-      <form onSubmit={handleSubmit}>
-        <input
-          className="fixed bottom-0 w-full max-w-md p-2 mb-8 border border-gray-300 rounded shadow-xl"
-          value={input}
-          placeholder="Say something..."
-          onChange={handleInputChange}
-          disabled={status !== 'ready'}
-        />
-      </form>
+      <ChatInput
+        status={status}
+        stop={stop}
+        onSubmit={text => sendMessage({ text })}
+      />
     </div>
   );
 }

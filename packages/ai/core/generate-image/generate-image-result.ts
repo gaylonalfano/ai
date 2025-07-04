@@ -1,4 +1,8 @@
-import { ImageGenerationWarning } from '../types/image-model';
+import { GeneratedFile } from '../generate-text';
+import {
+  ImageGenerationWarning,
+  ImageModelProviderMetadata,
+} from '../types/image-model';
 import { ImageModelResponseMetadata } from '../types/image-model-response-metadata';
 
 /**
@@ -9,12 +13,12 @@ export interface GenerateImageResult {
   /**
 The first image that was generated.
    */
-  readonly image: GeneratedImage;
+  readonly image: GeneratedFile;
 
   /**
 The images that were generated.
      */
-  readonly images: Array<GeneratedImage>;
+  readonly images: Array<GeneratedFile>;
 
   /**
 Warnings for the call, e.g. unsupported settings.
@@ -25,16 +29,10 @@ Warnings for the call, e.g. unsupported settings.
 Response metadata from the provider. There may be multiple responses if we made multiple calls to the model.
    */
   readonly responses: Array<ImageModelResponseMetadata>;
-}
-
-export interface GeneratedImage {
-  /**
-Image as a base64 encoded string.
-   */
-  readonly base64: string;
 
   /**
-Image as a Uint8Array.
+   * Provider-specific metadata. They are passed through from the provider to the AI SDK and enable provider-specific
+   * results that can be fully encapsulated in the provider.
    */
-  readonly uint8Array: Uint8Array;
+  readonly providerMetadata: ImageModelProviderMetadata;
 }

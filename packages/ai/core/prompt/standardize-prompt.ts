@@ -1,20 +1,10 @@
 import { InvalidPromptError } from '@ai-sdk/provider';
-import { safeValidateTypes } from '@ai-sdk/provider-utils';
-import { Message } from '@ai-sdk/ui-utils';
-import { z } from 'zod';
-import { ToolSet } from '../generate-text/tool-set';
-import { convertToCoreMessages } from './convert-to-core-messages';
-import { detectPromptType } from './detect-prompt-type';
-import { CoreMessage, coreMessageSchema } from './message';
+import { ModelMessage, safeValidateTypes } from '@ai-sdk/provider-utils';
+import { z } from 'zod/v4';
+import { modelMessageSchema } from './message';
 import { Prompt } from './prompt';
 
 export type StandardizedPrompt = {
-  /**
-   * Original prompt type. This is forwarded to the providers and can be used
-   * to write send raw text to providers that support it.
-   */
-  type: 'prompt' | 'messages';
-
   /**
    * System message.
    */
@@ -23,16 +13,12 @@ export type StandardizedPrompt = {
   /**
    * Messages.
    */
-  messages: CoreMessage[];
+  messages: ModelMessage[];
 };
 
-export function standardizePrompt<TOOLS extends ToolSet>({
-  prompt,
-  tools,
-}: {
-  prompt: Prompt;
-  tools: undefined | TOOLS;
-}): StandardizedPrompt {
+export async function standardizePrompt(
+  prompt: Prompt,
+): Promise<StandardizedPrompt> {
   if (prompt.prompt == null && prompt.messages == null) {
     throw new InvalidPromptError({
       prompt,
@@ -55,65 +41,45 @@ export function standardizePrompt<TOOLS extends ToolSet>({
     });
   }
 
-  // type: prompt
-  if (prompt.prompt != null) {
-    // validate that prompt is a string
-    if (typeof prompt.prompt !== 'string') {
-      throw new InvalidPromptError({
-        prompt,
-        message: 'prompt must be a string',
-      });
-    }
+  let messages: ModelMessage[];
 
-    return {
-      type: 'prompt',
-      system: prompt.system,
-      messages: [
-        {
-          role: 'user',
-          content: prompt.prompt,
-        },
-      ],
-    };
-  }
-
-  // type: messages
-  if (prompt.messages != null) {
-    const promptType = detectPromptType(prompt.messages);
-
-    if (promptType === 'other') {
-      throw new InvalidPromptError({
-        prompt,
-        message: 'messages must be an array of CoreMessage or UIMessage',
-      });
-    }
-
-    const messages: CoreMessage[] =
-      promptType === 'ui-messages'
-        ? convertToCoreMessages(prompt.messages as Omit<Message, 'id'>[], {
-            tools,
-          })
-        : (prompt.messages as CoreMessage[]);
-
-    const validationResult = safeValidateTypes({
-      value: messages,
-      schema: z.array(coreMessageSchema),
+  if (prompt.prompt != null && typeof prompt.prompt === 'string') {
+    messages = [{ role: 'user', content: prompt.prompt }];
+  } else if (prompt.prompt != null && Array.isArray(prompt.prompt)) {
+    messages = prompt.prompt;
+  } else if (prompt.messages != null) {
+    messages = prompt.messages;
+  } else {
+    throw new InvalidPromptError({
+      prompt,
+      message: 'prompt or messages must be defined',
     });
-
-    if (!validationResult.success) {
-      throw new InvalidPromptError({
-        prompt,
-        message: 'messages must be an array of CoreMessage or UIMessage',
-        cause: validationResult.error,
-      });
-    }
-
-    return {
-      type: 'messages',
-      messages,
-      system: prompt.system,
-    };
   }
 
-  throw new Error('unreachable');
+  if (messages.length === 0) {
+    throw new InvalidPromptError({
+      prompt,
+      message: 'messages must not be empty',
+    });
+  }
+
+  const validationResult = await safeValidateTypes({
+    value: messages,
+    schema: z.array(modelMessageSchema),
+  });
+
+  if (!validationResult.success) {
+    throw new InvalidPromptError({
+      prompt,
+      message:
+        'The messages must be a ModelMessage[]. ' +
+        'If you have passed a UIMessage[], you can use convertToModelMessages to convert them.',
+      cause: validationResult.error,
+    });
+  }
+
+  return {
+    messages,
+    system: prompt.system,
+  };
 }

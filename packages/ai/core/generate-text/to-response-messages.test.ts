@@ -1,29 +1,28 @@
-import { z } from 'zod';
-import { mockValues } from '../test/mock-values';
-import { tool } from '../tool';
+import z from 'zod/v4';
+import { DefaultGeneratedFile } from './generated-file';
 import { toResponseMessages } from './to-response-messages';
+import { tool } from '../tool';
 
 describe('toResponseMessages', () => {
   it('should return an assistant message with text when no tool calls or results', () => {
     const result = toResponseMessages({
-      text: 'Hello, world!',
-      reasoning: [],
-      tools: {
-        testTool: {
-          description: 'A test tool',
-          parameters: z.object({}),
+      content: [
+        {
+          type: 'text',
+          text: 'Hello, world!',
         },
+      ],
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
       },
-      toolCalls: [],
-      toolResults: [],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
     });
 
     expect(result).toEqual([
       {
         role: 'assistant',
-        id: 'msg-123',
         content: [{ type: 'text', text: 'Hello, world!' }],
       },
     ]);
@@ -31,38 +30,36 @@ describe('toResponseMessages', () => {
 
   it('should include tool calls in the assistant message', () => {
     const result = toResponseMessages({
-      text: 'Using a tool',
-      reasoning: [],
-      tools: {
-        testTool: {
-          description: 'A test tool',
-          parameters: z.object({}),
+      content: [
+        {
+          type: 'text',
+          text: 'Using a tool',
         },
-      },
-      toolCalls: [
         {
           type: 'tool-call',
           toolCallId: '123',
           toolName: 'testTool',
-          args: {},
+          input: {},
         },
       ],
-      toolResults: [],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
+      },
     });
 
     expect(result).toEqual([
       {
         role: 'assistant',
-        id: 'msg-123',
         content: [
           { type: 'text', text: 'Using a tool' },
           {
             type: 'tool-call',
             toolCallId: '123',
             toolName: 'testTool',
-            args: {},
+            input: {},
           },
         ],
       },
@@ -71,178 +68,608 @@ describe('toResponseMessages', () => {
 
   it('should include tool results as a separate message', () => {
     const result = toResponseMessages({
-      text: 'Tool used',
-      reasoning: [],
-      tools: {
-        testTool: {
-          description: 'A test tool',
-          parameters: z.object({}),
-          execute: async () => 'Tool result',
+      content: [
+        {
+          type: 'text',
+          text: 'Tool used',
         },
-      },
-      toolCalls: [
         {
           type: 'tool-call',
           toolCallId: '123',
           toolName: 'testTool',
-          args: {},
+          input: {},
         },
-      ],
-      toolResults: [
         {
           type: 'tool-result',
           toolCallId: '123',
           toolName: 'testTool',
-          result: 'Tool result',
-          args: {},
+          output: 'Tool result',
+          input: {},
         },
       ],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
+      },
     });
 
-    expect(result).toEqual([
-      {
-        role: 'assistant',
-        id: 'msg-123',
-        content: [
-          { type: 'text', text: 'Tool used' },
-          {
-            type: 'tool-call',
-            toolCallId: '123',
-            toolName: 'testTool',
-            args: {},
-          },
-        ],
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "text": "Tool used",
+              "type": "text",
+            },
+            {
+              "input": {},
+              "providerExecuted": undefined,
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "text",
+                "value": "Tool result",
+              },
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ]
+    `);
+  });
+
+  it('should include tool errors as a separate message', () => {
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'text',
+          text: 'Tool used',
+        },
+        {
+          type: 'tool-call',
+          toolCallId: '123',
+          toolName: 'testTool',
+          input: {},
+        },
+        {
+          type: 'tool-error',
+          toolCallId: '123',
+          toolName: 'testTool',
+          error: 'Tool error',
+          input: {},
+        },
+      ],
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
       },
-      {
-        role: 'tool',
-        id: 'msg-345',
-        content: [
-          {
-            type: 'tool-result',
-            toolCallId: '123',
-            toolName: 'testTool',
-            result: 'Tool result',
-          },
-        ],
-      },
-    ]);
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "text": "Tool used",
+              "type": "text",
+            },
+            {
+              "input": {},
+              "providerExecuted": undefined,
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "error-text",
+                "value": "Tool error",
+              },
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ]
+    `);
   });
 
   it('should handle undefined text', () => {
     const result = toResponseMessages({
-      text: undefined,
-      reasoning: [],
+      content: [
+        {
+          type: 'reasoning',
+          text: 'Thinking text',
+          providerMetadata: {
+            testProvider: {
+              signature: 'sig',
+            },
+          },
+        },
+      ],
       tools: {},
-      toolCalls: [],
-      toolResults: [],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
     });
 
-    expect(result).toEqual([
-      {
-        role: 'assistant',
-        content: [{ type: 'text', text: '' }],
-        id: 'msg-123',
-      },
-    ]);
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "providerOptions": {
+                "testProvider": {
+                  "signature": "sig",
+                },
+              },
+              "text": "Thinking text",
+              "type": "reasoning",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
   });
 
   it('should include reasoning array with redacted reasoning in the assistant message', () => {
     const result = toResponseMessages({
-      text: 'Final text',
-      reasoning: [
-        { type: 'redacted', data: 'redacted-data' },
-        { type: 'text', text: 'Thinking text', signature: 'sig' },
+      content: [
+        {
+          type: 'reasoning',
+          text: 'redacted-data',
+          providerMetadata: {
+            testProvider: { isRedacted: true },
+          },
+        },
+        {
+          type: 'reasoning',
+          text: 'Thinking text',
+          providerMetadata: {
+            testProvider: { signature: 'sig' },
+          },
+        },
+        {
+          type: 'text',
+          text: 'Final text',
+        },
       ],
       tools: {},
-      toolCalls: [],
-      toolResults: [],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
     });
 
-    expect(result).toEqual([
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "providerOptions": {
+                "testProvider": {
+                  "isRedacted": true,
+                },
+              },
+              "text": "redacted-data",
+              "type": "reasoning",
+            },
+            {
+              "providerOptions": {
+                "testProvider": {
+                  "signature": "sig",
+                },
+              },
+              "text": "Thinking text",
+              "type": "reasoning",
+            },
+            {
+              "text": "Final text",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+  });
+
+  it('should handle multipart tool results', () => {
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'text',
+          text: 'multipart tool result',
+        },
+        {
+          type: 'tool-call',
+          toolCallId: '123',
+          toolName: 'testTool',
+          input: {},
+        },
+        {
+          type: 'tool-result',
+          toolCallId: '123',
+          toolName: 'testTool',
+          output: 'image-base64',
+          input: {},
+        },
+      ],
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+          toModelOutput: () => ({
+            type: 'json',
+            value: {
+              proof: 'that toModelOutput is called',
+            },
+          }),
+        }),
+      },
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "text": "multipart tool result",
+              "type": "text",
+            },
+            {
+              "input": {},
+              "providerExecuted": undefined,
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "json",
+                "value": {
+                  "proof": "that toModelOutput is called",
+                },
+              },
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ]
+    `);
+  });
+
+  it('should include images in the assistant message', () => {
+    const pngFile = new DefaultGeneratedFile({
+      data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      mediaType: 'image/png',
+    });
+
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'text',
+          text: 'Here is an image',
+        },
+        { type: 'file', file: pngFile },
+      ],
+      tools: {},
+    });
+
+    expect(result).toStrictEqual([
       {
         role: 'assistant',
-        id: 'msg-123',
         content: [
-          { type: 'redacted-reasoning', data: 'redacted-data' },
-          { type: 'reasoning', text: 'Thinking text', signature: 'sig' },
-          { type: 'text', text: 'Final text' },
+          { type: 'text', text: 'Here is an image' },
+          { type: 'file', data: pngFile.base64, mediaType: pngFile.mediaType },
         ],
       },
     ]);
   });
 
-  it('should handle multipart tool results', () => {
+  it('should handle multiple images in the assistant message', () => {
+    const pngFile = new DefaultGeneratedFile({
+      data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      mediaType: 'image/png',
+    });
+    const jpegFile = new DefaultGeneratedFile({
+      data: new Uint8Array([255, 216, 255]),
+      mediaType: 'image/jpeg',
+    });
+
     const result = toResponseMessages({
-      text: 'multipart tool result',
-      reasoning: [],
-      tools: {
-        testTool: tool({
-          description: 'A test tool',
-          parameters: z.object({}),
-          execute: async () => 'image-base64',
-          experimental_toToolResultContent(result) {
-            return [{ type: 'image', data: result, mimeType: 'image/png' }];
+      content: [
+        {
+          type: 'text',
+          text: 'Here are multiple images',
+        },
+        { type: 'file', file: pngFile },
+        { type: 'file', file: jpegFile },
+      ],
+      tools: {},
+    });
+
+    expect(result).toStrictEqual([
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Here are multiple images' },
+          { type: 'file', data: pngFile.base64, mediaType: pngFile.mediaType },
+          {
+            type: 'file',
+            data: jpegFile.base64,
+            mediaType: jpegFile.mediaType,
           },
-        }),
+        ],
       },
-      toolCalls: [
+    ]);
+  });
+
+  it('should handle Uint8Array images', () => {
+    const pngFile = new DefaultGeneratedFile({
+      data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      mediaType: 'image/png',
+    });
+
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'text',
+          text: 'Here is a binary image',
+        },
+        { type: 'file', file: pngFile },
+      ],
+      tools: {},
+    });
+
+    expect(result).toStrictEqual([
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Here is a binary image' },
+          { type: 'file', data: pngFile.base64, mediaType: pngFile.mediaType },
+        ],
+      },
+    ]);
+  });
+
+  it('should include images, reasoning, and tool calls in the correct order', () => {
+    const pngFile = new DefaultGeneratedFile({
+      data: new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      mediaType: 'image/png',
+    });
+
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'reasoning',
+          text: 'Thinking text',
+          providerMetadata: { testProvider: { signature: 'sig' } },
+        },
+        { type: 'file', file: pngFile },
+        {
+          type: 'text',
+          text: 'Combined response',
+        },
         {
           type: 'tool-call',
           toolCallId: '123',
           toolName: 'testTool',
-          args: {},
+          input: {},
         },
       ],
-      toolResults: [
-        {
-          type: 'tool-result',
-          toolCallId: '123',
-          toolName: 'testTool',
-          args: {},
-          result: 'image-base64',
-        },
-      ],
-      messageId: 'msg-123',
-      generateMessageId: mockValues('msg-345'),
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
+      },
     });
 
-    expect(result).toEqual([
-      {
-        role: 'assistant',
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "providerOptions": {
+                "testProvider": {
+                  "signature": "sig",
+                },
+              },
+              "text": "Thinking text",
+              "type": "reasoning",
+            },
+            {
+              "data": "iVBORw0KGgo=",
+              "mediaType": "image/png",
+              "type": "file",
+            },
+            {
+              "text": "Combined response",
+              "type": "text",
+            },
+            {
+              "input": {},
+              "providerExecuted": undefined,
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+  });
+
+  it('should not append text parts if text is empty string', () => {
+    const result = toResponseMessages({
+      content: [
+        {
+          type: 'text',
+          text: '',
+        },
+        {
+          type: 'tool-call',
+          toolCallId: '123',
+          toolName: 'testTool',
+          input: {},
+        },
+      ],
+      tools: {
+        testTool: tool({
+          description: 'A test tool',
+          inputSchema: z.object({}),
+        }),
+      },
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "content": [
+            {
+              "input": {},
+              "providerExecuted": undefined,
+              "toolCallId": "123",
+              "toolName": "testTool",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+  });
+
+  it('should not append assistant message if there is no content', () => {
+    const result = toResponseMessages({
+      content: [],
+      tools: {},
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  describe('provider-executed tool calls', () => {
+    it('should include provider-executed tool calls and results', () => {
+      const result = toResponseMessages({
         content: [
-          { type: 'text', text: 'multipart tool result' },
+          {
+            type: 'text',
+            text: 'Let me search for recent news from San Francisco.',
+          },
           {
             type: 'tool-call',
-            toolCallId: '123',
-            toolName: 'testTool',
-            args: {},
+            toolCallId: 'srvtoolu_011cNtbtzFARKPcAcp7w4nh9',
+            toolName: 'web_search',
+            input: {
+              query: 'San Francisco major news events June 22 2025',
+            },
+            providerExecuted: true,
           },
-        ],
-        id: 'msg-123',
-      },
-      {
-        role: 'tool',
-        content: [
           {
             type: 'tool-result',
-            toolCallId: '123',
-            toolName: 'testTool',
-            result: [
-              { type: 'image', data: 'image-base64', mimeType: 'image/png' },
+            toolCallId: 'srvtoolu_011cNtbtzFARKPcAcp7w4nh9',
+            toolName: 'web_search',
+            input: {
+              query: 'San Francisco major news events June 22 2025',
+            },
+            output: [
+              { url: 'https://patch.com/california/san-francisco/calendar' },
             ],
-            experimental_content: [
-              { type: 'image', data: 'image-base64', mimeType: 'image/png' },
-            ],
+            providerExecuted: true,
+          },
+          {
+            type: 'text',
+            text: 'Based on the search results, several significant events took place in San Francisco yesterday (June 22, 2025). Here are the main highlights:\n\n1. Juneteenth Celebration:\n',
           },
         ],
-        id: 'msg-345',
-      },
-    ]);
+        tools: {
+          web_search: tool({
+            type: 'provider-defined',
+            id: 'test.web_search',
+            name: 'web_search',
+            inputSchema: z.object({
+              query: z.string(),
+            }),
+            outputSchema: z.array(
+              z.object({
+                url: z.string(),
+              }),
+            ),
+            args: {},
+          }),
+        },
+      });
+
+      expect(result).toMatchInlineSnapshot(`
+        [
+          {
+            "content": [
+              {
+                "text": "Let me search for recent news from San Francisco.",
+                "type": "text",
+              },
+              {
+                "input": {
+                  "query": "San Francisco major news events June 22 2025",
+                },
+                "providerExecuted": true,
+                "toolCallId": "srvtoolu_011cNtbtzFARKPcAcp7w4nh9",
+                "toolName": "web_search",
+                "type": "tool-call",
+              },
+              {
+                "output": {
+                  "type": "json",
+                  "value": [
+                    {
+                      "url": "https://patch.com/california/san-francisco/calendar",
+                    },
+                  ],
+                },
+                "providerExecuted": true,
+                "toolCallId": "srvtoolu_011cNtbtzFARKPcAcp7w4nh9",
+                "toolName": "web_search",
+                "type": "tool-result",
+              },
+              {
+                "text": "Based on the search results, several significant events took place in San Francisco yesterday (June 22, 2025). Here are the main highlights:
+
+        1. Juneteenth Celebration:
+        ",
+                "type": "text",
+              },
+            ],
+            "role": "assistant",
+          },
+        ]
+      `);
+    });
   });
 });

@@ -6,8 +6,7 @@ description: API reference for the useObject hook.
 # `experimental_useObject()`
 
 <Note>
-  `useObject` is an experimental feature and only available in React and
-  SolidJS.
+  `useObject` is an experimental feature and only available in React and Svelte.
 </Note>
 
 Allows you to consume text streams that represent a JSON object and parse them into a complete object based on a schema.
@@ -84,6 +83,13 @@ export default function Page() {
       isOptional: true,
       description:
         'A headers object to be passed to the API endpoint. Optional.',
+    },
+    {
+      name: 'credentials',
+      type: 'RequestCredentials',
+      isOptional: true,
+      description:
+        'The credentials mode to be used for the fetch request. Possible values are: "omit", "same-origin", "include". Optional.',
     },
     {
       name: 'onError',

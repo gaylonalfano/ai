@@ -1,9 +1,21 @@
-import { withTestServer } from '@ai-sdk/provider-utils/test';
+import {
+  createTestServer,
+  mockId,
+  TestResponseController,
+} from '@ai-sdk/provider-utils/test';
+import {
+  DefaultChatTransport,
+  isToolUIPart,
+  TextStreamChatTransport,
+  type UIMessageStreamPart,
+} from 'ai';
+import { flushSync } from 'svelte';
 import { Chat } from './chat.svelte.js';
-import { formatDataStreamPart, type Message } from '@ai-sdk/ui-utils';
 import { promiseWithResolvers } from './utils.svelte.js';
-import { render } from '@testing-library/svelte';
-import ChatSynchronization from './tests/chat-synchronization.svelte';
+
+function formatStreamPart(part: UIMessageStreamPart) {
+  return `data: ${JSON.stringify(part)}\n\n`;
+}
 
 function createFileList(...files: File[]): FileList {
   // file lists are really hard to create :(
@@ -19,280 +31,200 @@ function createFileList(...files: File[]): FileList {
   return fileList;
 }
 
+const server = createTestServer({
+  '/api/chat': {},
+});
+
 describe('data protocol stream', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    chat = new Chat({
+      generateId: mockId(),
+    });
   });
 
-  it(
-    'should correctly manage streamed response in messages',
-    withTestServer(
-      {
-        type: 'stream-values',
-        url: '/api/chat',
-        content: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
-      },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
+  it('should correctly manage streamed response in messages', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({ type: 'text-start', id: '0' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: 'Hello' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ',' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ' world' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: '.' }),
+        formatStreamPart({ type: 'text-end', id: '0' }),
+      ],
+    };
 
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello, world.',
-          }),
-        );
-      },
-    ),
-  );
+    await chat.sendMessage({
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+    expect(chat.messages.at(0)).toStrictEqual(
+      expect.objectContaining({
+        role: 'user',
+        parts: [{ text: 'hi', type: 'text' }],
+      }),
+    );
 
-  it(
-    'should correctly manage streamed response in data',
-    withTestServer(
-      {
-        type: 'stream-values',
-        url: '/api/chat',
-        content: ['2:[{"t1":"v1"}]\n', '2:[{"t1": "v2"}]\n', '0:"Hello"\n'],
-      },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-        expect(chat.data).toStrictEqual([{ t1: 'v1' }, { t1: 'v2' }]);
+    expect(chat.messages.at(1)).toStrictEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        parts: [{ type: 'text', text: 'Hello, world.', state: 'done' }],
+      }),
+    );
+  });
 
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello',
-          }),
-        );
-      },
-    ),
-  );
+  it('should show error response when there is a server error', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'error',
+      status: 404,
+      body: 'Not found',
+    };
 
-  it(
-    'should clear data',
-    withTestServer(
-      {
-        type: 'stream-values',
-        url: '/api/chat',
-        content: ['2:[{"t1":"v1"}]\n', '0:"Hello"\n'],
-      },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-        expect(chat.data).toStrictEqual([{ t1: 'v1' }]);
-        chat.data = undefined;
-        expect(chat.data).toBeUndefined();
-      },
-    ),
-  );
+    await chat.sendMessage({
+      text: 'hi',
+    });
+    expect(chat.error).toBeInstanceOf(Error);
+    expect(chat.error?.message).toBe('Not found');
+  });
 
-  it(
-    'should show error response when there is a server error',
-    withTestServer(
-      { type: 'error', url: '/api/chat', status: 404, content: 'Not found' },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-        expect(chat.error).toBeInstanceOf(Error);
-        expect(chat.error?.message).toBe('Not found');
-      },
-    ),
-  );
+  it('should show error response when there is a streaming error', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'error',
+          errorText: 'custom error message',
+        }),
+      ],
+    };
 
-  it(
-    'should show error response when there is a streaming error',
-    withTestServer(
-      {
-        type: 'stream-values',
-        url: '/api/chat',
-        content: ['3:"custom error message"\n'],
-      },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-        expect(chat.error).toBeInstanceOf(Error);
-        expect(chat.error?.message).toBe('custom error message');
-      },
-    ),
-  );
+    await chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+    expect(chat.error).toBeInstanceOf(Error);
+    expect(chat.error?.message).toBe('custom error message');
+  });
 
   describe('status', () => {
-    it(
-      'should show status',
-      withTestServer(
-        { url: '/api/chat', type: 'controlled-stream' },
-        async ({ streamController }) => {
-          const appendOperation = chat.append({ role: 'user', content: 'hi' });
-          await vi.waitFor(() => expect(chat.status).toBe('submitted'));
-          streamController.enqueue('0:"Hello"\n');
-          await vi.waitFor(() => expect(chat.status).toBe('streaming'));
-          streamController.close();
-          await appendOperation;
-          expect(chat.status).toBe('ready');
-        },
-      ),
-    );
+    it('should show status', async () => {
+      const controller = new TestResponseController();
+      server.urls['/api/chat'].response = {
+        type: 'controlled-stream',
+        controller,
+      };
 
-    it(
-      'should set status to error when there is a server error',
-      withTestServer(
-        {
-          type: 'error',
-          url: '/api/chat',
-          status: 404,
-          content: 'Not found',
-        },
-        async () => {
-          chat.append({ role: 'user', content: 'hi' });
-          await vi.waitFor(() => expect(chat.status).toBe('error'));
-        },
-      ),
-    );
+      const appendOperation = chat.sendMessage({
+        role: 'user',
+        parts: [{ text: 'hi', type: 'text' }],
+      });
+      await vi.waitFor(() => expect(chat.status).toBe('submitted'));
+      controller.write(formatStreamPart({ type: 'text-start', id: '0' }));
+      controller.write(
+        formatStreamPart({ type: 'text-delta', id: '0', delta: 'Hello' }),
+      );
+      controller.write(formatStreamPart({ type: 'text-end', id: '0' }));
+      await vi.waitFor(() => expect(chat.status).toBe('streaming'));
+      controller.close();
+      await appendOperation;
+      expect(chat.status).toBe('ready');
+    });
+
+    it('should set status to error when there is a server error', async () => {
+      server.urls['/api/chat'].response = {
+        type: 'error',
+        status: 404,
+        body: 'Not found',
+      };
+
+      chat.sendMessage({
+        role: 'user',
+        parts: [{ text: 'hi', type: 'text' }],
+      });
+      await vi.waitFor(() => expect(chat.status).toBe('error'));
+    });
   });
 
-  it(
-    'should invoke onFinish when the stream finishes',
-    withTestServer(
-      {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: [
-          formatDataStreamPart('text', 'Hello'),
-          formatDataStreamPart('text', ','),
-          formatDataStreamPart('text', ' world'),
-          formatDataStreamPart('text', '.'),
-          formatDataStreamPart('finish_message', {
-            finishReason: 'stop',
-            usage: { completionTokens: 1, promptTokens: 3 },
-          }),
-        ],
-      },
-      async () => {
-        const onFinish = vi.fn();
-        const chatWithOnFinish = new Chat({
-          onFinish,
-        });
-        await chatWithOnFinish.append({ role: 'user', content: 'hi' });
+  it('should invoke onFinish when the stream finishes', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({ type: 'text-start', id: '0' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: 'Hello' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ',' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ' world' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: '.' }),
+        formatStreamPart({ type: 'text-end', id: '0' }),
+        formatStreamPart({
+          type: 'finish',
+          messageMetadata: {
+            example: 'metadata',
+          },
+        }),
+      ],
+    };
 
-        expect(onFinish).toHaveBeenCalledExactlyOnceWith(
+    const onFinish = vi.fn();
+    const chatWithOnFinish = new Chat({
+      onFinish,
+      generateId: mockId(),
+    });
+    await chatWithOnFinish.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+
+    expect(onFinish).toHaveBeenCalledExactlyOnceWith({
+      message: {
+        id: 'id-2',
+        metadata: {
+          example: 'metadata',
+        },
+        parts: [
           {
-            id: expect.any(String),
-            createdAt: expect.any(Date),
-            role: 'assistant',
-            content: 'Hello, world.',
-            parts: [{ text: 'Hello, world.', type: 'text' }],
+            text: 'Hello, world.',
+            type: 'text',
+            state: 'done',
           },
-          {
-            finishReason: 'stop',
-            usage: {
-              completionTokens: 1,
-              promptTokens: 3,
-              totalTokens: 4,
-            },
-          },
-        );
+        ],
+        role: 'assistant',
       },
-    ),
-  );
+    });
+  });
 
   describe('id', () => {
-    it(
-      'send the id to the server',
-      withTestServer(
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
-        },
-        async ({ call }) => {
-          await chat.append({ role: 'user', content: 'hi' });
+    it('should send the id to the server', async () => {
+      server.urls['/api/chat'].response = {
+        type: 'stream-chunks',
+        chunks: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
+      };
 
-          expect(await call(0).getRequestBodyJson()).toStrictEqual({
-            id: chat.id,
-            messages: [
-              {
-                role: 'user',
-                content: 'hi',
-                parts: [{ text: 'hi', type: 'text' }],
-              },
-            ],
-          });
-        },
-      ),
-    );
+      await chat.sendMessage({
+        role: 'user',
+        parts: [{ text: 'hi', type: 'text' }],
+      });
 
-    it(
-      'should clear out messages when the id changes',
-      withTestServer(
+      expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
         {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
-        },
-        async () => {
-          let id = $state(crypto.randomUUID());
-          const chatWithId = new Chat({
-            get id() {
-              return id;
+          "id": "id-0",
+          "messages": [
+            {
+              "id": "id-1",
+              "parts": [
+                {
+                  "text": "hi",
+                  "type": "text",
+                },
+              ],
+              "role": "user",
             },
-          });
-          await chatWithId.append({ role: 'user', content: 'hi' });
-
-          expect(chatWithId.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              role: 'assistant',
-              content: 'Hello, world.',
-            }),
-          );
-
-          id = crypto.randomUUID();
-
-          expect(chatWithId.messages).toHaveLength(0);
-        },
-      ),
-    );
-
-    it(
-      'should restore messages when the id changes back to an existing id',
-      withTestServer(
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
-        },
-        async () => {
-          let id = $state(crypto.randomUUID());
-          const originalId = id;
-          const chatWithId = new Chat({
-            get id() {
-              return id;
-            },
-          });
-          await chatWithId.append({ role: 'user', content: 'hi' });
-
-          expect(chatWithId.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              role: 'assistant',
-              content: 'Hello, world.',
-            }),
-          );
-
-          id = crypto.randomUUID();
-          expect(chatWithId.messages).toHaveLength(0);
-          id = originalId;
-          expect(chatWithId.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              role: 'assistant',
-              content: 'Hello, world.',
-            }),
-          );
-        },
-      ),
-    );
+          ],
+          "trigger": "submit-user-message",
+        }
+      `);
+    });
   });
 });
 
@@ -300,228 +232,130 @@ describe('text stream', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat({ streamProtocol: 'text' });
+    const generateId = mockId();
+
+    chat = new Chat({
+      generateId,
+      transport: new TextStreamChatTransport({
+        api: '/api/chat',
+      }),
+    });
   });
 
-  it(
-    'should show streamed response',
-    withTestServer(
-      {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['Hello', ',', ' world', '.'],
-      },
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
+  it('should show streamed response', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: ['Hello', ',', ' world', '.'],
+    };
 
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
+    await chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
 
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello, world.',
-          }),
-        );
-      },
-    ),
-  );
-
-  it(
-    'should have stable message ids',
-    withTestServer(
-      { url: '/api/chat', type: 'controlled-stream' },
-      async ({ streamController }) => {
-        const appendOperation = chat.append({ role: 'user', content: 'hi' });
-        streamController.enqueue('He');
-
-        await vi.waitFor(() =>
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              id: expect.any(String),
-              role: 'assistant',
-              content: 'He',
-            }),
-          ),
-        );
-        const id = chat.messages.at(1)?.id;
-
-        streamController.enqueue('llo');
-        streamController.close();
-        await appendOperation;
-
-        expect(id).toBeDefined();
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            id,
-            role: 'assistant',
-            content: 'Hello',
-          }),
-        );
-      },
-    ),
-  );
-
-  it(
-    'should invoke onFinish when the stream finishes',
-    withTestServer(
-      {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['Hello', ',', ' world', '.'],
-      },
-      async () => {
-        const onFinish = vi.fn();
-        const chatWithOnFinish = new Chat({
-          streamProtocol: 'text',
-          onFinish,
-        });
-        await chatWithOnFinish.append({ role: 'user', content: 'hi' });
-
-        expect(onFinish).toHaveBeenCalledExactlyOnceWith(
-          {
-            id: expect.any(String),
-            createdAt: expect.any(Date),
-            role: 'assistant',
-            content: 'Hello, world.',
-            parts: [{ text: 'Hello, world.', type: 'text' }],
-          },
-          {
-            finishReason: 'unknown',
-            usage: {
-              completionTokens: NaN,
-              promptTokens: NaN,
-              totalTokens: NaN,
+    expect(chat.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "id-1",
+          "metadata": undefined,
+          "parts": [
+            {
+              "text": "hi",
+              "type": "text",
             },
-          },
-        );
-      },
-    ),
-  );
-});
-
-describe('form actions', () => {
-  let chat: Chat;
-
-  beforeEach(() => {
-    chat = new Chat({ streamProtocol: 'text' });
+          ],
+          "role": "user",
+        },
+        {
+          "id": "id-2",
+          "metadata": undefined,
+          "parts": [
+            {
+              "type": "step-start",
+            },
+            {
+              "state": "done",
+              "text": "Hello, world.",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
   });
 
-  it(
-    'should show streamed response using handleSubmit',
-    withTestServer(
-      [
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['Hello', ',', ' world', '.'],
-        },
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['How', ' can', ' I', ' help', ' you', '?'],
-        },
-      ],
-      async () => {
-        chat.input = 'hi';
-        await chat.handleSubmit();
+  it('should have stable message ids', async () => {
+    const controller = new TestResponseController();
+    server.urls['/api/chat'].response = {
+      type: 'controlled-stream',
+      controller,
+    };
 
-        expect(chat.input).toBe('');
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
+    const appendOperation = chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+    controller.write('He');
 
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello, world.',
-          }),
-        );
+    await vi.waitFor(() =>
+      expect(chat.messages.at(1)).toStrictEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          role: 'assistant',
+          metadata: undefined,
+          parts: [
+            { type: 'step-start' },
+            { text: 'He', type: 'text', state: 'streaming' },
+          ],
+        }),
+      ),
+    );
+    const id = chat.messages.at(1)?.id;
 
-        await chat.handleSubmit();
-        expect(chat.messages.at(2)).toBeUndefined();
+    controller.write('llo');
+    controller.close();
+    await appendOperation;
+
+    expect(id).toBeDefined();
+    expect(chat.messages.at(1)).toStrictEqual(
+      expect.objectContaining({
+        id,
+        role: 'assistant',
+      }),
+    );
+  });
+
+  it('should invoke onFinish when the stream finishes', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: ['Hello', ',', ' world', '.'],
+    };
+
+    const onFinish = vi.fn();
+    const chatWithOnFinish = new Chat({
+      onFinish,
+      transport: new TextStreamChatTransport({
+        api: '/api/chat',
+      }),
+    });
+    await chatWithOnFinish.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+
+    expect(onFinish).toHaveBeenCalledExactlyOnceWith({
+      message: {
+        id: expect.any(String),
+        role: 'assistant',
+        metadata: undefined,
+        parts: [
+          { type: 'step-start' },
+          { text: 'Hello, world.', type: 'text', state: 'done' },
+        ],
       },
-    ),
-  );
-
-  it(
-    'should allow empty submit',
-    withTestServer(
-      [
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['Hello', ',', ' world', '.'],
-        },
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['How', ' can', ' I', ' help', ' you', '?'],
-        },
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['The', ' sky', ' is', ' blue', '.'],
-        },
-      ],
-      async () => {
-        chat.input = 'hi';
-        await chat.handleSubmit();
-        expect(chat.input).toBe('');
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello, world.',
-          }),
-        );
-
-        await chat.handleSubmit(undefined, { allowEmptySubmit: true });
-        expect(chat.messages.at(2)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: '',
-          }),
-        );
-
-        expect(chat.messages.at(3)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'How can I help you?',
-          }),
-        );
-
-        chat.input = 'What color is the sky?';
-        await chat.handleSubmit();
-        expect(chat.messages.at(4)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'What color is the sky?',
-          }),
-        );
-
-        expect(chat.messages.at(5)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'The sky is blue.',
-          }),
-        );
-      },
-    ),
-  );
+    });
+  });
 });
 
 describe('onToolCall', () => {
@@ -537,316 +371,380 @@ describe('onToolCall', () => {
         await toolCallPromise;
         return `test-tool-response: ${toolCall.toolName} ${
           toolCall.toolCallId
-        } ${JSON.stringify(toolCall.args)}`;
+        } ${JSON.stringify(toolCall.input)}`;
       },
     });
   });
 
-  it(
-    "should invoke onToolCall when a tool call is received from the server's response",
-    withTestServer(
+  it("should invoke onToolCall when a tool call is received from the server's response", async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'tool-input-available',
+          toolCallId: 'tool-call-0',
+          toolName: 'test-tool',
+          input: { testArg: 'test-value' },
+        }),
+      ],
+    };
+
+    const appendOperation = chat.sendMessage({ text: 'hi' });
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    resolve();
+    await appendOperation;
+
+    expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
       {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: [
-          formatDataStreamPart('tool_call', {
-            toolCallId: 'tool-call-0',
-            toolName: 'test-tool',
-            args: { testArg: 'test-value' },
-          }),
-        ],
+        state: 'output-available',
+        errorText: undefined,
+        toolCallId: 'tool-call-0',
+        type: 'tool-test-tool',
+        input: { testArg: 'test-value' },
+        output:
+          'test-tool-response: test-tool tool-call-0 {"testArg":"test-value"}',
+        providerExecuted: undefined,
       },
-      async () => {
-        const appendOperation = chat.append({ role: 'user', content: 'hi' });
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                },
-              ],
-            }),
-          );
-        });
-
-        resolve();
-        await appendOperation;
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            toolInvocations: [
-              {
-                state: 'result',
-                step: 0,
-                toolCallId: 'tool-call-0',
-                toolName: 'test-tool',
-                args: { testArg: 'test-value' },
-                result:
-                  'test-tool-response: test-tool tool-call-0 {"testArg":"test-value"}',
-              },
-            ],
-          }),
-        );
-      },
-    ),
-  );
+    ]);
+  });
 });
 
 describe('tool invocations', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    const generateId = mockId();
+    chat = new Chat({
+      generateId,
+      maxSteps: 5,
+      transport: new DefaultChatTransport({
+        api: '/api/chat',
+      }),
+    });
   });
 
-  it(
-    'should display partial tool call, tool call, and tool result',
-    withTestServer(
-      { url: '/api/chat', type: 'controlled-stream' },
-      async ({ streamController }) => {
-        const appendOperation = chat.append({ role: 'user', content: 'hi' });
+  it('should display partial tool call, tool call, and tool result', async () => {
+    const controller = new TestResponseController();
+    server.urls['/api/chat'].response = {
+      type: 'controlled-stream',
+      controller,
+    };
 
-        streamController.enqueue(
-          formatDataStreamPart('tool_call_streaming_start', {
-            toolCallId: 'tool-call-0',
-            toolName: 'test-tool',
-          }),
-        );
+    const appendOperation = chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
 
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'partial-call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                },
-              ],
-            }),
-          );
-        });
+    controller.write(
+      formatStreamPart({
+        type: 'tool-input-start',
+        toolCallId: 'tool-call-0',
+        toolName: 'test-tool',
+      }),
+    );
 
-        streamController.enqueue(
-          formatDataStreamPart('tool_call_delta', {
-            toolCallId: 'tool-call-0',
-            argsTextDelta: '{"testArg":"t',
-          }),
-        );
-
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'partial-call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 't' },
-                },
-              ],
-            }),
-          );
-        });
-
-        streamController.enqueue(
-          formatDataStreamPart('tool_call_delta', {
-            toolCallId: 'tool-call-0',
-            argsTextDelta: 'est-value"}}',
-          }),
-        );
-
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'partial-call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                },
-              ],
-            }),
-          );
-        });
-
-        streamController.enqueue(
-          formatDataStreamPart('tool_call', {
-            toolCallId: 'tool-call-0',
-            toolName: 'test-tool',
-            args: { testArg: 'test-value' },
-          }),
-        );
-
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                },
-              ],
-            }),
-          );
-        });
-
-        streamController.enqueue(
-          formatDataStreamPart('tool_result', {
-            toolCallId: 'tool-call-0',
-            result: 'test-result',
-          }),
-        );
-        streamController.close();
-        await appendOperation;
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            toolInvocations: [
-              {
-                state: 'result',
-                step: 0,
-                toolCallId: 'tool-call-0',
-                toolName: 'test-tool',
-                args: { testArg: 'test-value' },
-                result: 'test-result',
-              },
-            ],
-          }),
-        );
-      },
-    ),
-  );
-
-  it(
-    'should display partial tool call and tool result (when there is no tool call streaming)',
-    withTestServer(
-      { url: '/api/chat', type: 'controlled-stream' },
-      async ({ streamController }) => {
-        const appendOperation = chat.append({ role: 'user', content: 'hi' });
-
-        streamController.enqueue(
-          formatDataStreamPart('tool_call', {
-            toolCallId: 'tool-call-0',
-            toolName: 'test-tool',
-            args: { testArg: 'test-value' },
-          }),
-        );
-
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                },
-              ],
-            }),
-          );
-        });
-
-        streamController.enqueue(
-          formatDataStreamPart('tool_result', {
-            toolCallId: 'tool-call-0',
-            result: 'test-result',
-          }),
-        );
-        streamController.close();
-        await appendOperation;
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            toolInvocations: [
-              {
-                state: 'result',
-                step: 0,
-                toolCallId: 'tool-call-0',
-                toolName: 'test-tool',
-                args: { testArg: 'test-value' },
-                result: 'test-result',
-              },
-            ],
-          }),
-        );
-      },
-    ),
-  );
-
-  it(
-    'should update tool call to result when addToolResult is called',
-    withTestServer(
-      [
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
         {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: [
-            formatDataStreamPart('tool_call', {
-              toolCallId: 'tool-call-0',
-              toolName: 'test-tool',
-              args: { testArg: 'test-value' },
-            }),
-          ],
-        },
-      ],
-      async () => {
-        await chat.append({ role: 'user', content: 'hi' });
-
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'call',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                },
-              ],
-            }),
-          );
-        });
-
-        chat.addToolResult({
+          state: 'input-streaming',
+          errorText: undefined,
           toolCallId: 'tool-call-0',
-          result: 'test-result',
-        });
+          type: 'tool-test-tool',
+          input: undefined,
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
 
-        await vi.waitFor(() => {
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              toolInvocations: [
-                {
-                  state: 'result',
-                  step: 0,
-                  toolCallId: 'tool-call-0',
-                  toolName: 'test-tool',
-                  args: { testArg: 'test-value' },
-                  result: 'test-result',
-                },
-              ],
-            }),
-          );
-        });
+    controller.write(
+      formatStreamPart({
+        type: 'tool-input-delta',
+        toolCallId: 'tool-call-0',
+        inputTextDelta: '{"testArg":"t',
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-streaming',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 't' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    controller.write(
+      formatStreamPart({
+        type: 'tool-input-delta',
+        toolCallId: 'tool-call-0',
+        inputTextDelta: 'est-value"}}',
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-streaming',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    controller.write(
+      formatStreamPart({
+        type: 'tool-input-available',
+        toolCallId: 'tool-call-0',
+        toolName: 'test-tool',
+        input: { testArg: 'test-value' },
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    controller.write(
+      formatStreamPart({
+        type: 'tool-output-available',
+        toolCallId: 'tool-call-0',
+        output: 'test-result',
+      }),
+    );
+    controller.close();
+    await appendOperation;
+
+    expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+      {
+        state: 'output-available',
+        errorText: undefined,
+        toolCallId: 'tool-call-0',
+        type: 'tool-test-tool',
+        input: { testArg: 'test-value' },
+        output: 'test-result',
+        providerExecuted: undefined,
       },
-    ),
-  );
+    ]);
+  });
+
+  it('should display partial tool call and tool result (when there is no tool call streaming)', async () => {
+    const controller = new TestResponseController();
+    server.urls['/api/chat'].response = {
+      type: 'controlled-stream',
+      controller,
+    };
+
+    const appendOperation = chat.sendMessage({ text: 'hi' });
+
+    controller.write(
+      formatStreamPart({
+        type: 'tool-input-available',
+        toolCallId: 'tool-call-0',
+        toolName: 'test-tool',
+        input: { testArg: 'test-value' },
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    controller.write(
+      formatStreamPart({
+        type: 'tool-output-available',
+        toolCallId: 'tool-call-0',
+        output: 'test-result',
+      }),
+    );
+    controller.close();
+
+    await appendOperation;
+
+    expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+      {
+        state: 'output-available',
+        errorText: undefined,
+        toolCallId: 'tool-call-0',
+        type: 'tool-test-tool',
+        input: { testArg: 'test-value' },
+        output: 'test-result',
+        providerExecuted: undefined,
+      },
+    ]);
+  });
+
+  it('should update tool call to result when addToolResult is called', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'tool-input-available',
+          toolCallId: 'tool-call-0',
+          toolName: 'test-tool',
+          input: { testArg: 'test-value' },
+        }),
+      ],
+    };
+
+    await chat.sendMessage({
+      text: 'hi',
+    });
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: undefined,
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    chat.addToolResult({
+      toolCallId: 'tool-call-0',
+      output: 'test-result',
+    });
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'output-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: 'test-result',
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+  });
+
+  it('should delay tool result submission until the stream is finished', async () => {
+    const controller1 = new TestResponseController();
+    const controller2 = new TestResponseController();
+
+    server.urls['/api/chat'].response = [
+      { type: 'controlled-stream', controller: controller1 },
+      { type: 'controlled-stream', controller: controller2 },
+    ];
+
+    chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+
+    // start stream
+    controller1.write(formatStreamPart({ type: 'start' }));
+    controller1.write(formatStreamPart({ type: 'start-step' }));
+
+    // tool call
+    controller1.write(
+      formatStreamPart({
+        type: 'tool-input-available',
+        toolCallId: 'tool-call-0',
+        toolName: 'test-tool',
+        input: { testArg: 'test-value' },
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'input-available',
+          errorText: undefined,
+          input: { testArg: 'test-value' },
+          output: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    // user submits the tool result
+    chat.addToolResult({
+      toolCallId: 'tool-call-0',
+      output: 'test-result',
+    });
+
+    // UI should show the tool result
+    await vi.waitFor(() => {
+      expect(chat.messages.at(1)?.parts.filter(isToolUIPart)).toStrictEqual([
+        {
+          state: 'output-available',
+          errorText: undefined,
+          toolCallId: 'tool-call-0',
+          type: 'tool-test-tool',
+          input: { testArg: 'test-value' },
+          output: 'test-result',
+          providerExecuted: undefined,
+        },
+      ]);
+    });
+
+    // should not have called the API yet
+    expect(server.calls.length).toBe(1);
+
+    // finish stream
+    controller1.write(formatStreamPart({ type: 'finish-step' }));
+    controller1.write(formatStreamPart({ type: 'finish' }));
+
+    await controller1.close();
+
+    // 2nd call should happen after the stream is finished
+    await vi.waitFor(() => {
+      expect(server.calls.length).toBe(2);
+    });
+  });
 });
 
 describe('maxSteps', () => {
@@ -860,47 +758,91 @@ describe('maxSteps', () => {
           onToolCallInvoked = true;
           return `test-tool-response: ${toolCall.toolName} ${
             toolCall.toolCallId
-          } ${JSON.stringify(toolCall.args)}`;
+          } ${JSON.stringify(toolCall.input)}`;
         },
+        id: 'test-id',
         maxSteps: 5,
+        transport: new DefaultChatTransport({
+          api: '/api/chat',
+        }),
+        generateId: mockId(),
       });
       onToolCallInvoked = false;
     });
 
-    it(
-      'should automatically call api when tool call gets executed via onToolCall',
-      withTestServer(
+    it('should automatically call api when tool call gets executed via onToolCall', async () => {
+      server.urls['/api/chat'].response = [
+        {
+          type: 'stream-chunks',
+          chunks: [
+            formatStreamPart({
+              type: 'tool-input-available',
+              toolCallId: 'tool-call-0',
+              toolName: 'test-tool',
+              input: { testArg: 'test-value' },
+            }),
+          ],
+        },
+        {
+          type: 'stream-chunks',
+          chunks: [
+            formatStreamPart({ type: 'text-start', id: '0' }),
+            formatStreamPart({
+              type: 'text-delta',
+              id: '0',
+              delta: 'final result',
+            }),
+            formatStreamPart({ type: 'text-end', id: '0' }),
+          ],
+        },
+      ];
+
+      await chat.sendMessage({
+        role: 'user',
+        parts: [{ text: 'hi', type: 'text' }],
+      });
+
+      expect(onToolCallInvoked).toBe(true);
+
+      expect(chat.messages).toMatchInlineSnapshot(`
         [
           {
-            url: '/api/chat',
-            type: 'stream-values',
-            content: [
-              formatDataStreamPart('tool_call', {
-                toolCallId: 'tool-call-0',
-                toolName: 'test-tool',
-                args: { testArg: 'test-value' },
-              }),
+            "id": "id-0",
+            "metadata": undefined,
+            "parts": [
+              {
+                "text": "hi",
+                "type": "text",
+              },
             ],
+            "role": "user",
           },
           {
-            url: '/api/chat',
-            type: 'stream-values',
-            content: [formatDataStreamPart('text', 'final result')],
+            "id": "id-1",
+            "metadata": undefined,
+            "parts": [
+              {
+                "errorText": undefined,
+                "input": {
+                  "testArg": "test-value",
+                },
+                "output": "test-tool-response: test-tool tool-call-0 {"testArg":"test-value"}",
+                "providerExecuted": undefined,
+                "state": "output-available",
+                "toolCallId": "tool-call-0",
+                "type": "tool-test-tool",
+              },
+              {
+                "state": "done",
+                "text": "final result",
+                "type": "text",
+              },
+            ],
+            "role": "assistant",
           },
-        ],
-        async () => {
-          await chat.append({ role: 'user', content: 'hi' });
-
-          expect(onToolCallInvoked).toBe(true);
-
-          expect(chat.messages.at(1)).toStrictEqual(
-            expect.objectContaining({
-              content: 'final result',
-            }),
-          );
-        },
-      ),
-    );
+        ]
+      `);
+    });
   });
 
   describe('two steps with error response', () => {
@@ -913,44 +855,44 @@ describe('maxSteps', () => {
           onToolCallCounter++;
           return `test-tool-response: ${toolCall.toolName} ${
             toolCall.toolCallId
-          } ${JSON.stringify(toolCall.args)}`;
+          } ${JSON.stringify(toolCall.input)}`;
         },
         maxSteps: 5,
+        transport: new DefaultChatTransport({
+          api: '/api/chat',
+        }),
       });
       onToolCallCounter = 0;
     });
 
-    it(
-      'should automatically call api when tool call gets executed via onToolCall',
-      withTestServer(
-        [
-          {
-            url: '/api/chat',
-            type: 'stream-values',
-            content: [
-              formatDataStreamPart('tool_call', {
-                toolCallId: 'tool-call-0',
-                toolName: 'test-tool',
-                args: { testArg: 'test-value' },
-              }),
-            ],
-          },
-          {
-            url: '/api/chat',
-            type: 'error',
-            status: 400,
-            content: 'call failure',
-          },
-        ],
-        async () => {
-          await chat.append({ role: 'user', content: 'hi' });
-
-          expect(chat.error).toBeInstanceOf(Error);
-          expect(chat.error?.message).toBe('call failure');
-          expect(onToolCallCounter).toBe(1);
+    it('should automatically call api when tool call gets executed via onToolCall', async () => {
+      server.urls['/api/chat'].response = [
+        {
+          type: 'stream-chunks',
+          chunks: [
+            formatStreamPart({
+              type: 'tool-input-available',
+              toolCallId: 'tool-call-0',
+              toolName: 'test-tool',
+              input: { testArg: 'test-value' },
+            }),
+          ],
         },
-      ),
-    );
+        {
+          type: 'error',
+          status: 400,
+          body: 'call failure',
+        },
+      ];
+
+      await chat.sendMessage({
+        text: 'hi',
+      });
+
+      expect(chat.error).toBeInstanceOf(Error);
+      expect(chat.error?.message).toBe('call failure');
+      expect(onToolCallCounter).toBe(1);
+    });
   });
 });
 
@@ -958,510 +900,586 @@ describe('file attachments with data url', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    chat = new Chat({
+      generateId: mockId(),
+    });
   });
 
-  it(
-    'should handle text file attachment and submission',
-    withTestServer(
-      {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['0:"Response to message with text attachment"'],
-      },
-      async ({ call }) => {
-        chat.input = 'Message with text attachment';
+  it('should handle text file attachment and submission', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'text-start',
+          id: '0',
+        }),
+        formatStreamPart({
+          type: 'text-delta',
+          id: '0',
+          delta: 'Response to message with text attachment',
+        }),
+        formatStreamPart({
+          type: 'text-end',
+          id: '0',
+        }),
+      ],
+    };
 
-        await chat.handleSubmit(undefined, {
-          experimental_attachments: createFileList(
-            new File(['test file content'], 'test.txt', {
-              type: 'text/plain',
-            }),
-          ),
-        });
+    await chat.sendMessage({
+      text: 'Message with text attachment',
+      files: createFileList(
+        new File(['test file content'], 'test.txt', {
+          type: 'text/plain',
+        }),
+      ),
+    });
 
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'Message with text attachment',
-            experimental_attachments: [
-              expect.objectContaining({
-                name: 'test.txt',
-                contentType: 'text/plain',
-                url: 'data:text/plain;base64,dGVzdCBmaWxlIGNvbnRlbnQ=',
-              }),
-            ],
-          }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Response to message with text attachment',
-          }),
-        );
-
-        expect(await call(0).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
+    expect(chat.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "id-1",
+          "metadata": undefined,
+          "parts": [
             {
-              role: 'user',
-              content: 'Message with text attachment',
-              experimental_attachments: [
-                {
-                  name: 'test.txt',
-                  contentType: 'text/plain',
-                  url: 'data:text/plain;base64,dGVzdCBmaWxlIGNvbnRlbnQ=',
-                },
-              ],
-              parts: [{ text: 'Message with text attachment', type: 'text' }],
+              "filename": "test.txt",
+              "mediaType": "text/plain",
+              "type": "file",
+              "url": "data:text/plain;base64,dGVzdCBmaWxlIGNvbnRlbnQ=",
+            },
+            {
+              "text": "Message with text attachment",
+              "type": "text",
             },
           ],
-        });
-      },
-    ),
-  );
-
-  it(
-    'should handle image file attachment and submission',
-    withTestServer(
-      {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['0:"Response to message with image attachment"'],
-      },
-      async ({ call }) => {
-        chat.input = 'Message with image attachment';
-
-        await chat.handleSubmit(undefined, {
-          experimental_attachments: createFileList(
-            new File(['test image content'], 'test.png', {
-              type: 'image/png',
-            }),
-          ),
-        });
-
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'Message with image attachment',
-            experimental_attachments: [
-              expect.objectContaining({
-                name: 'test.png',
-                contentType: 'image/png',
-                url: 'data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50',
-              }),
-            ],
-          }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Response to message with image attachment',
-          }),
-        );
-
-        expect(await call(0).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
+          "role": "user",
+        },
+        {
+          "id": "id-2",
+          "metadata": undefined,
+          "parts": [
             {
-              role: 'user',
-              content: 'Message with image attachment',
-              experimental_attachments: [
-                {
-                  name: 'test.png',
-                  contentType: 'image/png',
-                  url: 'data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50',
-                },
-              ],
-              parts: [{ text: 'Message with image attachment', type: 'text' }],
+              "state": "done",
+              "text": "Response to message with text attachment",
+              "type": "text",
             },
           ],
-        });
-      },
-    ),
-  );
+          "role": "assistant",
+        },
+      ]
+    `);
+
+    expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
+      {
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "parts": [
+              {
+                "filename": "test.txt",
+                "mediaType": "text/plain",
+                "type": "file",
+                "url": "data:text/plain;base64,dGVzdCBmaWxlIGNvbnRlbnQ=",
+              },
+              {
+                "text": "Message with text attachment",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+        ],
+        "trigger": "submit-user-message",
+      }
+    `);
+  });
+
+  it('should handle image file attachment and submission', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'text-start',
+          id: '0',
+        }),
+        formatStreamPart({
+          type: 'text-delta',
+          id: '0',
+          delta: 'Response to message with image attachment',
+        }),
+        formatStreamPart({
+          type: 'text-end',
+          id: '0',
+        }),
+      ],
+    };
+
+    await chat.sendMessage({
+      text: 'Message with image attachment',
+      files: createFileList(
+        new File(['test image content'], 'test.png', {
+          type: 'image/png',
+        }),
+      ),
+    });
+
+    expect(chat.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "id-1",
+          "metadata": undefined,
+          "parts": [
+            {
+              "filename": "test.png",
+              "mediaType": "image/png",
+              "type": "file",
+              "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+            },
+            {
+              "text": "Message with image attachment",
+              "type": "text",
+            },
+          ],
+          "role": "user",
+        },
+        {
+          "id": "id-2",
+          "metadata": undefined,
+          "parts": [
+            {
+              "state": "done",
+              "text": "Response to message with image attachment",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+
+    expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
+      {
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "parts": [
+              {
+                "filename": "test.png",
+                "mediaType": "image/png",
+                "type": "file",
+                "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+              },
+              {
+                "text": "Message with image attachment",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+        ],
+        "trigger": "submit-user-message",
+      }
+    `);
+  });
 });
 
 describe('file attachments with url', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    chat = new Chat({
+      generateId: mockId(),
+    });
   });
 
-  it(
-    'should handle image file attachment and submission',
-    withTestServer(
+  it('should handle image file attachment and submission', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'text-start',
+          id: '0',
+        }),
+        formatStreamPart({
+          type: 'text-delta',
+          id: '0',
+          delta: 'Response to message with image attachment',
+        }),
+        formatStreamPart({
+          type: 'text-end',
+          id: '0',
+        }),
+      ],
+    };
+
+    await chat.sendMessage({
+      text: 'Message with image attachment',
+      files: createFileList(
+        new File(['test image content'], 'test.png', {
+          type: 'image/png',
+        }),
+      ),
+    });
+
+    expect(chat.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "id-1",
+          "metadata": undefined,
+          "parts": [
+            {
+              "filename": "test.png",
+              "mediaType": "image/png",
+              "type": "file",
+              "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+            },
+            {
+              "text": "Message with image attachment",
+              "type": "text",
+            },
+          ],
+          "role": "user",
+        },
+        {
+          "id": "id-2",
+          "metadata": undefined,
+          "parts": [
+            {
+              "state": "done",
+              "text": "Response to message with image attachment",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+
+    expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
       {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['0:"Response to message with image attachment"'],
-      },
-      async ({ call }) => {
-        chat.input = 'Message with image attachment';
-
-        await chat.handleSubmit(undefined, {
-          experimental_attachments: [
-            {
-              name: 'test.png',
-              contentType: 'image/png',
-              url: 'https://example.com/image.png',
-            },
-          ],
-        });
-
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'Message with image attachment',
-            experimental_attachments: [
-              expect.objectContaining({
-                name: 'test.png',
-                contentType: 'image/png',
-                url: 'https://example.com/image.png',
-              }),
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "parts": [
+              {
+                "filename": "test.png",
+                "mediaType": "image/png",
+                "type": "file",
+                "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+              },
+              {
+                "text": "Message with image attachment",
+                "type": "text",
+              },
             ],
-          }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Response to message with image attachment',
-          }),
-        );
-
-        expect(await call(0).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
-            {
-              role: 'user',
-              content: 'Message with image attachment',
-              experimental_attachments: [
-                {
-                  name: 'test.png',
-                  contentType: 'image/png',
-                  url: 'https://example.com/image.png',
-                },
-              ],
-              parts: [{ text: 'Message with image attachment', type: 'text' }],
-            },
-          ],
-        });
-      },
-    ),
-  );
+            "role": "user",
+          },
+        ],
+        "trigger": "submit-user-message",
+      }
+    `);
+  });
 });
 
 describe('file attachments with empty text content', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    chat = new Chat({
+      generateId: mockId(),
+    });
   });
 
-  it(
-    'should handle image file attachment and submission',
-    withTestServer(
+  it('should handle image file attachment and submission', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({
+          type: 'text-start',
+          id: '0',
+        }),
+        formatStreamPart({
+          type: 'text-delta',
+          id: '0',
+          delta: 'Response to message with image attachment',
+        }),
+        formatStreamPart({
+          type: 'text-end',
+          id: '0',
+        }),
+      ],
+    };
+
+    await chat.sendMessage({
+      files: createFileList(
+        new File(['test image content'], 'test.png', {
+          type: 'image/png',
+        }),
+      ),
+    });
+
+    flushSync();
+
+    expect(chat.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "id-1",
+          "metadata": undefined,
+          "parts": [
+            {
+              "filename": "test.png",
+              "mediaType": "image/png",
+              "type": "file",
+              "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+            },
+          ],
+          "role": "user",
+        },
+        {
+          "id": "id-2",
+          "metadata": undefined,
+          "parts": [
+            {
+              "state": "done",
+              "text": "Response to message with image attachment",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+
+    expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
       {
-        url: '/api/chat',
-        type: 'stream-values',
-        content: ['0:"Response to message with image attachment"'],
-      },
-      async ({ call }) => {
-        await chat.handleSubmit(undefined, {
-          allowEmptySubmit: true,
-          experimental_attachments: [
-            {
-              name: 'test.png',
-              contentType: 'image/png',
-              url: 'https://example.com/image.png',
-            },
-          ],
-        });
-
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: '',
-            experimental_attachments: [
-              expect.objectContaining({
-                name: 'test.png',
-                contentType: 'image/png',
-                url: 'https://example.com/image.png',
-              }),
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "parts": [
+              {
+                "filename": "test.png",
+                "mediaType": "image/png",
+                "type": "file",
+                "url": "data:image/png;base64,dGVzdCBpbWFnZSBjb250ZW50",
+              },
             ],
-          }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Response to message with image attachment',
-          }),
-        );
-
-        expect(await call(0).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
-            {
-              role: 'user',
-              content: '',
-              experimental_attachments: [
-                {
-                  name: 'test.png',
-                  contentType: 'image/png',
-                  url: 'https://example.com/image.png',
-                },
-              ],
-              parts: [{ text: '', type: 'text' }],
-            },
-          ],
-        });
-      },
-    ),
-  );
+            "role": "user",
+          },
+        ],
+        "trigger": "submit-user-message",
+      }
+    `);
+  });
 });
 
 describe('reload', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
+    chat = new Chat({
+      generateId: mockId(),
+    });
   });
 
-  it(
-    'should show streamed response',
-    withTestServer(
-      [
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"first response"\n'],
-        },
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"second response"\n'],
-        },
-      ],
-      async ({ call }) => {
-        await chat.append({ role: 'user', content: 'hi' });
-
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
+  it('should show streamed response', async () => {
+    server.urls['/api/chat'].response = [
+      {
+        type: 'stream-chunks',
+        chunks: [
+          formatStreamPart({ type: 'text-start', id: '0' }),
+          formatStreamPart({
+            type: 'text-delta',
+            id: '0',
+            delta: 'first response',
           }),
-        );
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'first response',
-          }),
-        );
-
-        // Setup done, call reload:
-        await chat.reload({
-          data: { 'test-data-key': 'test-data-value' },
-          body: { 'request-body-key': 'request-body-value' },
-          headers: { 'header-key': 'header-value' },
-        });
-
-        expect(await call(1).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
-            {
-              content: 'hi',
-              role: 'user',
-              parts: [{ text: 'hi', type: 'text' }],
-            },
-          ],
-          data: { 'test-data-key': 'test-data-value' },
-          'request-body-key': 'request-body-value',
-        });
-
-        expect(call(1).getRequestHeaders()).toStrictEqual({
-          'content-type': 'application/json',
-          'header-key': 'header-value',
-        });
-
-        expect(chat.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'second response',
-          }),
-        );
+          formatStreamPart({ type: 'text-end', id: '0' }),
+        ],
       },
-    ),
-  );
+      {
+        type: 'stream-chunks',
+        chunks: [
+          formatStreamPart({ type: 'text-start', id: '0' }),
+          formatStreamPart({
+            type: 'text-delta',
+            id: '0',
+            delta: 'second response',
+          }),
+          formatStreamPart({ type: 'text-end', id: '0' }),
+        ],
+      },
+    ];
+
+    await chat.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+
+    expect(chat.messages.at(0)).toStrictEqual(
+      expect.objectContaining({
+        role: 'user',
+      }),
+    );
+
+    expect(chat.messages.at(1)).toStrictEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        parts: [{ text: 'first response', type: 'text', state: 'done' }],
+      }),
+    );
+
+    // Setup done, call regenerate:
+    await chat.regenerate({
+      body: { 'request-body-key': 'request-body-value' },
+      headers: { 'header-key': 'header-value' },
+    });
+
+    expect(await server.calls[1].requestBodyJson).toMatchInlineSnapshot(`
+      {
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "parts": [
+              {
+                "text": "hi",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+        ],
+        "request-body-key": "request-body-value",
+        "trigger": "regenerate-assistant-message",
+      }
+    `);
+
+    expect(server.calls[1].requestHeaders).toStrictEqual({
+      'content-type': 'application/json',
+      'header-key': 'header-value',
+    });
+
+    expect(chat.messages.at(1)).toStrictEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        parts: [{ text: 'second response', type: 'text', state: 'done' }],
+      }),
+    );
+  });
 });
 
 describe('test sending additional fields during message submission', () => {
   let chat: Chat;
 
   beforeEach(() => {
-    chat = new Chat();
-  });
-
-  it(
-    'annotations',
-    withTestServer(
-      [
-        {
-          url: '/api/chat',
-          type: 'stream-values',
-          content: ['0:"first response"\n'],
-        },
-      ],
-      async ({ call }) => {
-        await chat.append({
-          role: 'user',
-          content: 'hi',
-          annotations: ['this is an annotation'],
-        });
-
-        expect(chat.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
-
-        expect(await call(0).getRequestBodyJson()).toStrictEqual({
-          id: expect.any(String),
-          messages: [
-            {
-              role: 'user',
-              content: 'hi',
-              annotations: ['this is an annotation'],
-              parts: [{ text: 'hi', type: 'text' }],
-            },
-          ],
-        });
-      },
-    ),
-  );
-});
-
-describe('initialMessages', () => {
-  let chat: Chat;
-  let initialMessages = $state<Message[]>([
-    {
-      id: 'test-msg-1',
-      content: 'Test message 1',
-      role: 'user',
-    },
-  ]);
-
-  beforeEach(() => {
     chat = new Chat({
-      get initialMessages() {
-        return initialMessages;
-      },
+      generateId: mockId(),
     });
   });
 
-  it('should not update messages when initialMessages changes', () => {
-    expect(chat.messages).toStrictEqual([
+  it('should send metadata with the message', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: ['0:"first response"\n'],
+    };
+
+    await chat.sendMessage({
+      role: 'user',
+      metadata: { test: 'example' },
+      parts: [{ text: 'hi', type: 'text' }],
+    });
+
+    expect(chat.messages.at(0)).toStrictEqual(
       expect.objectContaining({
-        id: 'test-msg-1',
-        content: 'Test message 1',
         role: 'user',
       }),
-    ]);
+    );
 
-    initialMessages = [
+    expect(await server.calls[0].requestBodyJson).toMatchInlineSnapshot(`
       {
-        id: 'test-msg-2',
-        content: 'Test message 2',
-        role: 'user',
-      },
-    ];
-
-    expect(chat.messages).toStrictEqual([
-      expect.objectContaining({
-        id: 'test-msg-1',
-        content: 'Test message 1',
-        role: 'user',
-      }),
-    ]);
+        "id": "id-0",
+        "messages": [
+          {
+            "id": "id-1",
+            "metadata": {
+              "test": "example",
+            },
+            "parts": [
+              {
+                "text": "hi",
+                "type": "text",
+              },
+            ],
+            "role": "user",
+          },
+        ],
+        "trigger": "submit-user-message",
+      }
+    `);
   });
 });
 
-describe('synchronization', () => {
-  it(
-    'correctly synchronizes content between hook instances',
-    withTestServer(
-      {
-        type: 'stream-values',
-        url: '/api/chat',
-        content: ['0:"Hello"\n', '0:","\n', '0:" world"\n', '0:"."\n'],
-      },
-      async () => {
-        const {
-          component: { chat1, chat2 },
-        } = render(ChatSynchronization, { id: crypto.randomUUID() });
+describe('generateId function', () => {
+  it('should use the provided generateId function for both user and assistant messages', async () => {
+    server.urls['/api/chat'].response = {
+      type: 'stream-chunks',
+      chunks: [
+        formatStreamPart({ type: 'start', messageId: '123' }),
+        formatStreamPart({ type: 'text-start', id: '0' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: 'Hello' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ',' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: ' world' }),
+        formatStreamPart({ type: 'text-delta', id: '0', delta: '.' }),
+        formatStreamPart({ type: 'text-end', id: '0' }),
+      ],
+    };
 
-        await chat1.append({ role: 'user', content: 'hi' });
+    const chatWithCustomId = new Chat({
+      generateId: mockId({ prefix: 'testid' }),
+    });
 
-        expect(chat1.messages.at(0)).toStrictEqual(
-          expect.objectContaining({
-            role: 'user',
-            content: 'hi',
-          }),
-        );
-        expect(chat2.messages.at(0)).toStrictEqual(chat1.messages.at(0));
+    await chatWithCustomId.sendMessage({
+      role: 'user',
+      parts: [{ text: 'hi', type: 'text' }],
+    });
 
-        expect(chat1.messages.at(1)).toStrictEqual(
-          expect.objectContaining({
-            role: 'assistant',
-            content: 'Hello, world.',
-          }),
-        );
-        expect(chat2.messages.at(1)).toStrictEqual(chat1.messages.at(1));
-      },
-    ),
-  );
+    expect(chatWithCustomId.messages).toMatchInlineSnapshot(`
+      [
+        {
+          "id": "testid-1",
+          "metadata": undefined,
+          "parts": [
+            {
+              "text": "hi",
+              "type": "text",
+            },
+          ],
+          "role": "user",
+        },
+        {
+          "id": "123",
+          "metadata": undefined,
+          "parts": [
+            {
+              "state": "done",
+              "text": "Hello, world.",
+              "type": "text",
+            },
+          ],
+          "role": "assistant",
+        },
+      ]
+    `);
+  });
+});
 
-  it(
-    'correctly synchronizes loading and error state between hook instances',
-    withTestServer(
-      {
-        type: 'controlled-stream',
-        url: '/api/chat',
-      },
-      async ({ streamController }) => {
-        const {
-          component: { chat1, chat2 },
-        } = render(ChatSynchronization, { id: crypto.randomUUID() });
-
-        const appendOperation = chat1.append({ role: 'user', content: 'hi' });
-
-        await vi.waitFor(() => {
-          expect(chat1.status).toBe('submitted');
-          expect(chat2.status).toBe('submitted');
-        });
-
-        streamController.enqueue('0:"Hello"\n');
-        await vi.waitFor(() => {
-          expect(chat1.status).toBe('streaming');
-          expect(chat2.status).toBe('streaming');
-        });
-
-        streamController.error(new Error('Failed to be cool enough'));
-        await appendOperation;
-
-        expect(chat1.status).toBe('error');
-        expect(chat2.status).toBe('error');
-        expect(chat1.error).toBeInstanceOf(Error);
-        expect(chat1.error?.message).toBe('Failed to be cool enough');
-        expect(chat2.error).toBeInstanceOf(Error);
-        expect(chat2.error?.message).toBe('Failed to be cool enough');
-      },
-    ),
-  );
+describe('reactivity', () => {
+  it('should be able to render as a derived', () => {
+    const chat = $derived(new Chat({}));
+    // If this isn't handled correctly, it'd show a `state_unsafe_mutation` error.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    chat.messages;
+  });
 });

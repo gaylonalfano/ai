@@ -1,8 +1,8 @@
 import {
-  EmbeddingModelV1,
-  ImageModelV1,
-  LanguageModelV1,
-  ProviderV1,
+  EmbeddingModelV2,
+  ImageModelV2,
+  LanguageModelV2,
+  ProviderV2,
 } from '@ai-sdk/provider';
 import {
   FetchFunction,
@@ -12,21 +12,15 @@ import {
   withoutTrailingSlash,
 } from '@ai-sdk/provider-utils';
 import { BedrockChatLanguageModel } from './bedrock-chat-language-model';
-import {
-  BedrockChatModelId,
-  BedrockChatSettings,
-} from './bedrock-chat-settings';
+import { BedrockChatModelId } from './bedrock-chat-options';
 import { BedrockEmbeddingModel } from './bedrock-embedding-model';
-import {
-  BedrockEmbeddingModelId,
-  BedrockEmbeddingSettings,
-} from './bedrock-embedding-settings';
+import { BedrockEmbeddingModelId } from './bedrock-embedding-options';
 import { BedrockImageModel } from './bedrock-image-model';
+import { BedrockImageModelId } from './bedrock-image-settings';
 import {
-  BedrockImageModelId,
-  BedrockImageSettings,
-} from './bedrock-image-settings';
-import { createSigV4FetchFunction } from './bedrock-sigv4-fetch';
+  BedrockCredentials,
+  createSigV4FetchFunction,
+} from './bedrock-sigv4-fetch';
 
 export interface AmazonBedrockProviderSettings {
   /**
@@ -37,6 +31,7 @@ The AWS region to use for the Bedrock provider. Defaults to the value of the
 
   /**
 The AWS access key ID to use for the Bedrock provider. Defaults to the value of the
+`AWS_ACCESS_KEY_ID` environment variable.
    */
   accessKeyId?: string;
 
@@ -68,35 +63,35 @@ or to provide a custom fetch implementation for e.g. testing.
 */
   fetch?: FetchFunction;
 
+  /**
+The AWS credential provider to use for the Bedrock provider to get dynamic
+credentials similar to the AWS SDK. Setting a provider here will cause its
+credential values to be used instead of the `accessKeyId`, `secretAccessKey`,
+and `sessionToken` settings.
+   */
+  credentialProvider?: () => PromiseLike<Omit<BedrockCredentials, 'region'>>;
+
   // for testing
   generateId?: () => string;
 }
 
-export interface AmazonBedrockProvider extends ProviderV1 {
-  (
-    modelId: BedrockChatModelId,
-    settings?: BedrockChatSettings,
-  ): LanguageModelV1;
+export interface AmazonBedrockProvider extends ProviderV2 {
+  (modelId: BedrockChatModelId): LanguageModelV2;
 
-  languageModel(
-    modelId: BedrockChatModelId,
-    settings?: BedrockChatSettings,
-  ): LanguageModelV1;
+  languageModel(modelId: BedrockChatModelId): LanguageModelV2;
 
-  embedding(
-    modelId: BedrockEmbeddingModelId,
-    settings?: BedrockEmbeddingSettings,
-  ): EmbeddingModelV1<string>;
+  embedding(modelId: BedrockEmbeddingModelId): EmbeddingModelV2<string>;
 
-  image(
-    modelId: BedrockImageModelId,
-    settings?: BedrockImageSettings,
-  ): ImageModelV1;
+  /**
+Creates a model for image generation.
+@deprecated Use `imageModel` instead.
+   */
+  image(modelId: BedrockImageModelId): ImageModelV2;
 
-  imageModel(
-    modelId: BedrockImageModelId,
-    settings?: BedrockImageSettings,
-  ): ImageModelV1;
+  /**
+Creates a model for image generation.
+   */
+  imageModel(modelId: BedrockImageModelId): ImageModelV2;
 }
 
 /**
@@ -105,14 +100,22 @@ Create an Amazon Bedrock provider instance.
 export function createAmazonBedrock(
   options: AmazonBedrockProviderSettings = {},
 ): AmazonBedrockProvider {
-  const sigv4Fetch = createSigV4FetchFunction(
-    () => ({
-      region: loadSetting({
-        settingValue: options.region,
-        settingName: 'region',
-        environmentVariableName: 'AWS_REGION',
-        description: 'AWS region',
-      }),
+  const sigv4Fetch = createSigV4FetchFunction(async () => {
+    const region = loadSetting({
+      settingValue: options.region,
+      settingName: 'region',
+      environmentVariableName: 'AWS_REGION',
+      description: 'AWS region',
+    });
+    // If a credential provider is provided, use it to get the credentials.
+    if (options.credentialProvider) {
+      return {
+        ...(await options.credentialProvider()),
+        region,
+      };
+    }
+    return {
+      region,
       accessKeyId: loadSetting({
         settingValue: options.accessKeyId,
         settingName: 'accessKeyId',
@@ -129,9 +132,8 @@ export function createAmazonBedrock(
         settingValue: options.sessionToken,
         environmentVariableName: 'AWS_SESSION_TOKEN',
       }),
-    }),
-    options.fetch,
-  );
+    };
+  }, options.fetch);
 
   const getBaseUrl = (): string =>
     withoutTrailingSlash(
@@ -144,45 +146,33 @@ export function createAmazonBedrock(
         })}.amazonaws.com`,
     ) ?? `https://bedrock-runtime.us-east-1.amazonaws.com`;
 
-  const createChatModel = (
-    modelId: BedrockChatModelId,
-    settings: BedrockChatSettings = {},
-  ) =>
-    new BedrockChatLanguageModel(modelId, settings, {
+  const createChatModel = (modelId: BedrockChatModelId) =>
+    new BedrockChatLanguageModel(modelId, {
       baseUrl: getBaseUrl,
       headers: options.headers ?? {},
       fetch: sigv4Fetch,
       generateId,
     });
 
-  const provider = function (
-    modelId: BedrockChatModelId,
-    settings?: BedrockChatSettings,
-  ) {
+  const provider = function (modelId: BedrockChatModelId) {
     if (new.target) {
       throw new Error(
         'The Amazon Bedrock model function cannot be called with the new keyword.',
       );
     }
 
-    return createChatModel(modelId, settings);
+    return createChatModel(modelId);
   };
 
-  const createEmbeddingModel = (
-    modelId: BedrockEmbeddingModelId,
-    settings: BedrockEmbeddingSettings = {},
-  ) =>
-    new BedrockEmbeddingModel(modelId, settings, {
+  const createEmbeddingModel = (modelId: BedrockEmbeddingModelId) =>
+    new BedrockEmbeddingModel(modelId, {
       baseUrl: getBaseUrl,
       headers: options.headers ?? {},
       fetch: sigv4Fetch,
     });
 
-  const createImageModel = (
-    modelId: BedrockImageModelId,
-    settings: BedrockImageSettings = {},
-  ) =>
-    new BedrockImageModel(modelId, settings, {
+  const createImageModel = (modelId: BedrockImageModelId) =>
+    new BedrockImageModel(modelId, {
       baseUrl: getBaseUrl,
       headers: options.headers ?? {},
       fetch: sigv4Fetch,

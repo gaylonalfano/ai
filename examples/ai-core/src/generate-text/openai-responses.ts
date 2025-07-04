@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai';
+import { openai, OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import 'dotenv/config';
 
@@ -6,7 +6,7 @@ async function main() {
   const result = await generateText({
     model: openai.responses('gpt-4o-mini'),
     prompt: 'Invent a new holiday and describe its traditions.',
-    maxTokens: 1000,
+    maxOutputTokens: 1000,
     providerOptions: {
       openai: {
         parallelToolCalls: false,
@@ -16,7 +16,7 @@ async function main() {
           key2: 'value2',
         },
         user: 'user_123',
-      },
+      } satisfies OpenAIResponsesProviderOptions,
     },
   });
 

@@ -1,42 +1,140 @@
-import { NoSuchModelError, ProviderV1 } from '@ai-sdk/provider';
-import { EmbeddingModel, ImageModel, LanguageModel, Provider } from '../types';
+import {
+  EmbeddingModelV2,
+  ImageModelV2,
+  LanguageModelV2,
+  NoSuchModelError,
+  ProviderV2,
+  SpeechModelV2,
+  TranscriptionModelV2,
+} from '@ai-sdk/provider';
 import { NoSuchProviderError } from './no-such-provider-error';
+
+type ExtractLiteralUnion<T> = T extends string
+  ? string extends T
+    ? never
+    : T
+  : never;
+
+export interface ProviderRegistryProvider<
+  PROVIDERS extends Record<string, ProviderV2> = Record<string, ProviderV2>,
+  SEPARATOR extends string = ':',
+> {
+  languageModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string
+      ? `${KEY & string}${SEPARATOR}${ExtractLiteralUnion<Parameters<NonNullable<PROVIDERS[KEY]['languageModel']>>[0]>}`
+      : never,
+  ): LanguageModelV2;
+  languageModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string ? `${KEY & string}${SEPARATOR}${string}` : never,
+  ): LanguageModelV2;
+
+  textEmbeddingModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string
+      ? `${KEY & string}${SEPARATOR}${ExtractLiteralUnion<Parameters<NonNullable<PROVIDERS[KEY]['textEmbeddingModel']>>[0]>}`
+      : never,
+  ): EmbeddingModelV2<string>;
+  textEmbeddingModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string ? `${KEY & string}${SEPARATOR}${string}` : never,
+  ): EmbeddingModelV2<string>;
+
+  imageModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string
+      ? `${KEY & string}${SEPARATOR}${ExtractLiteralUnion<Parameters<NonNullable<PROVIDERS[KEY]['imageModel']>>[0]>}`
+      : never,
+  ): ImageModelV2;
+  imageModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string ? `${KEY & string}${SEPARATOR}${string}` : never,
+  ): ImageModelV2;
+
+  transcriptionModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string
+      ? `${KEY & string}${SEPARATOR}${ExtractLiteralUnion<Parameters<NonNullable<PROVIDERS[KEY]['transcriptionModel']>>[0]>}`
+      : never,
+  ): TranscriptionModelV2;
+  transcriptionModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string ? `${KEY & string}${SEPARATOR}${string}` : never,
+  ): TranscriptionModelV2;
+
+  speechModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string
+      ? `${KEY & string}${SEPARATOR}${ExtractLiteralUnion<Parameters<NonNullable<PROVIDERS[KEY]['speechModel']>>[0]>}`
+      : never,
+  ): SpeechModelV2;
+  speechModel<KEY extends keyof PROVIDERS>(
+    id: KEY extends string ? `${KEY & string}${SEPARATOR}${string}` : never,
+  ): SpeechModelV2;
+}
 
 /**
  * Creates a registry for the given providers.
  */
-export function experimental_createProviderRegistry(
-  providers: Record<string, ProviderV1>,
-): Provider {
-  const registry = new DefaultProviderRegistry();
+export function createProviderRegistry<
+  PROVIDERS extends Record<string, ProviderV2>,
+  SEPARATOR extends string = ':',
+>(
+  providers: PROVIDERS,
+  {
+    separator = ':' as SEPARATOR,
+  }: {
+    separator?: SEPARATOR;
+  } = {},
+): ProviderRegistryProvider<PROVIDERS, SEPARATOR> {
+  const registry = new DefaultProviderRegistry<PROVIDERS, SEPARATOR>({
+    separator,
+  });
 
   for (const [id, provider] of Object.entries(providers)) {
-    registry.registerProvider({ id, provider });
+    registry.registerProvider({ id, provider } as {
+      id: keyof PROVIDERS;
+      provider: PROVIDERS[keyof PROVIDERS];
+    });
   }
 
   return registry;
 }
 
-class DefaultProviderRegistry implements Provider {
-  private providers: Record<string, ProviderV1> = {};
+/**
+ * @deprecated Use `createProviderRegistry` instead.
+ */
+export const experimental_createProviderRegistry = createProviderRegistry;
 
-  registerProvider({
+class DefaultProviderRegistry<
+  PROVIDERS extends Record<string, ProviderV2>,
+  SEPARATOR extends string,
+> implements ProviderRegistryProvider<PROVIDERS, SEPARATOR>
+{
+  private providers: PROVIDERS = {} as PROVIDERS;
+  private separator: SEPARATOR;
+
+  constructor({ separator }: { separator: SEPARATOR }) {
+    this.separator = separator;
+  }
+
+  registerProvider<K extends keyof PROVIDERS>({
     id,
     provider,
   }: {
-    id: string;
-    provider: ProviderV1;
+    id: K;
+    provider: PROVIDERS[K];
   }): void {
     this.providers[id] = provider;
   }
 
-  private getProvider(id: string): ProviderV1 {
-    const provider = this.providers[id];
+  private getProvider(
+    id: string,
+    modelType:
+      | 'languageModel'
+      | 'textEmbeddingModel'
+      | 'imageModel'
+      | 'transcriptionModel'
+      | 'speechModel',
+  ): ProviderV2 {
+    const provider = this.providers[id as keyof PROVIDERS];
 
     if (provider == null) {
       throw new NoSuchProviderError({
         modelId: id,
-        modelType: 'languageModel',
+        modelType,
         providerId: id,
         availableProviders: Object.keys(this.providers),
       });
@@ -47,9 +145,14 @@ class DefaultProviderRegistry implements Provider {
 
   private splitId(
     id: string,
-    modelType: 'languageModel' | 'textEmbeddingModel' | 'imageModel',
+    modelType:
+      | 'languageModel'
+      | 'textEmbeddingModel'
+      | 'imageModel'
+      | 'transcriptionModel'
+      | 'speechModel',
   ): [string, string] {
-    const index = id.indexOf(':');
+    const index = id.indexOf(this.separator);
 
     if (index === -1) {
       throw new NoSuchModelError({
@@ -57,16 +160,20 @@ class DefaultProviderRegistry implements Provider {
         modelType,
         message:
           `Invalid ${modelType} id for registry: ${id} ` +
-          `(must be in the format "providerId:modelId")`,
+          `(must be in the format "providerId${this.separator}modelId")`,
       });
     }
 
-    return [id.slice(0, index), id.slice(index + 1)];
+    return [id.slice(0, index), id.slice(index + this.separator.length)];
   }
 
-  languageModel(id: string): LanguageModel {
+  languageModel<KEY extends keyof PROVIDERS>(
+    id: `${KEY & string}${SEPARATOR}${string}`,
+  ): LanguageModelV2 {
     const [providerId, modelId] = this.splitId(id, 'languageModel');
-    const model = this.getProvider(providerId).languageModel?.(modelId);
+    const model = this.getProvider(providerId, 'languageModel').languageModel?.(
+      modelId,
+    );
 
     if (model == null) {
       throw new NoSuchModelError({ modelId: id, modelType: 'languageModel' });
@@ -75,9 +182,11 @@ class DefaultProviderRegistry implements Provider {
     return model;
   }
 
-  textEmbeddingModel(id: string): EmbeddingModel<string> {
+  textEmbeddingModel<KEY extends keyof PROVIDERS>(
+    id: `${KEY & string}${SEPARATOR}${string}`,
+  ): EmbeddingModelV2<string> {
     const [providerId, modelId] = this.splitId(id, 'textEmbeddingModel');
-    const provider = this.getProvider(providerId);
+    const provider = this.getProvider(providerId, 'textEmbeddingModel');
 
     const model = provider.textEmbeddingModel?.(modelId);
 
@@ -91,9 +200,11 @@ class DefaultProviderRegistry implements Provider {
     return model;
   }
 
-  imageModel(id: string): ImageModel {
+  imageModel<KEY extends keyof PROVIDERS>(
+    id: `${KEY & string}${SEPARATOR}${string}`,
+  ): ImageModelV2 {
     const [providerId, modelId] = this.splitId(id, 'imageModel');
-    const provider = this.getProvider(providerId);
+    const provider = this.getProvider(providerId, 'imageModel');
 
     const model = provider.imageModel?.(modelId);
 
@@ -104,10 +215,36 @@ class DefaultProviderRegistry implements Provider {
     return model;
   }
 
-  /**
-   * @deprecated Use `textEmbeddingModel` instead.
-   */
-  textEmbedding(id: string): EmbeddingModel<string> {
-    return this.textEmbeddingModel(id);
+  transcriptionModel<KEY extends keyof PROVIDERS>(
+    id: `${KEY & string}${SEPARATOR}${string}`,
+  ): TranscriptionModelV2 {
+    const [providerId, modelId] = this.splitId(id, 'transcriptionModel');
+    const provider = this.getProvider(providerId, 'transcriptionModel');
+
+    const model = provider.transcriptionModel?.(modelId);
+
+    if (model == null) {
+      throw new NoSuchModelError({
+        modelId: id,
+        modelType: 'transcriptionModel',
+      });
+    }
+
+    return model;
+  }
+
+  speechModel<KEY extends keyof PROVIDERS>(
+    id: `${KEY & string}${SEPARATOR}${string}`,
+  ): SpeechModelV2 {
+    const [providerId, modelId] = this.splitId(id, 'speechModel');
+    const provider = this.getProvider(providerId, 'speechModel');
+
+    const model = provider.speechModel?.(modelId);
+
+    if (model == null) {
+      throw new NoSuchModelError({ modelId: id, modelType: 'speechModel' });
+    }
+
+    return model;
   }
 }

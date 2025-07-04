@@ -1,9 +1,15 @@
 export { generateText } from './generate-text';
 export type { GenerateTextOnStepFinishCallback } from './generate-text';
 export type { GenerateTextResult } from './generate-text-result';
+export type {
+  GeneratedFile as Experimental_GeneratedImage, // Image for backwards compatibility, TODO remove in v5
+  GeneratedFile,
+} from './generated-file';
 export * as Output from './output';
-export { smoothStream } from './smooth-stream';
+export type { PrepareStepFunction, PrepareStepResult } from './prepare-step';
+export { smoothStream, type ChunkDetector } from './smooth-stream';
 export type { StepResult } from './step-result';
+export { hasToolCall, stepCountIs, type StopCondition } from './stop-condition';
 export { streamText } from './stream-text';
 export type {
   StreamTextOnChunkCallback,
@@ -13,21 +19,11 @@ export type {
   StreamTextTransform,
 } from './stream-text';
 export type {
-  DataStreamOptions,
   StreamTextResult,
   TextStreamPart,
+  UIMessageStreamOptions,
 } from './stream-text-result';
-export type {
-  CoreToolCall,
-  CoreToolCallUnion,
-  ToolCall,
-  ToolCallUnion,
-} from './tool-call';
-export type { ToolCallRepairFunction } from './tool-call-repair';
-export type {
-  CoreToolResult,
-  CoreToolResultUnion,
-  ToolResult,
-  ToolResultUnion,
-} from './tool-result';
+export type { ToolCallUnion } from './tool-call';
+export type { ToolCallRepairFunction } from './tool-call-repair-function';
+export type { ToolResultUnion, ToolErrorUnion } from './tool-output';
 export type { ToolSet } from './tool-set';

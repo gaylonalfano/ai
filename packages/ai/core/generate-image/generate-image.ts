@@ -1,13 +1,18 @@
-import { ImageModelV1, JSONValue } from '@ai-sdk/provider';
+import { ImageModelV2, ImageModelV2ProviderMetadata } from '@ai-sdk/provider';
+import { NoImageGeneratedError } from '../../src/error/no-image-generated-error';
 import {
-  convertBase64ToUint8Array,
-  convertUint8ArrayToBase64,
-} from '@ai-sdk/provider-utils';
-import { prepareRetries } from '../prompt/prepare-retries';
+  detectMediaType,
+  imageMediaTypeSignatures,
+} from '../../src/util/detect-media-type';
+import { prepareRetries } from '../../src/util/prepare-retries';
+import {
+  DefaultGeneratedFile,
+  GeneratedFile,
+} from '../generate-text/generated-file';
 import { ImageGenerationWarning } from '../types/image-model';
-import { GeneratedImage, GenerateImageResult } from './generate-image-result';
-import { NoImageGeneratedError } from '../../errors/no-image-generated-error';
 import { ImageModelResponseMetadata } from '../types/image-model-response-metadata';
+import { GenerateImageResult } from './generate-image-result';
+import { ProviderOptions } from '@ai-sdk/provider-utils';
 
 /**
 Generates images using an image model.
@@ -30,6 +35,7 @@ export async function generateImage({
   model,
   prompt,
   n = 1,
+  maxImagesPerCall,
   size,
   aspectRatio,
   seed,
@@ -37,14 +43,11 @@ export async function generateImage({
   maxRetries: maxRetriesArg,
   abortSignal,
   headers,
-  _internal = {
-    currentDate: () => new Date(),
-  },
 }: {
   /**
 The image model to use.
      */
-  model: ImageModelV1;
+  model: ImageModelV2;
 
   /**
 The prompt that should be used to generate the image.
@@ -55,6 +58,11 @@ The prompt that should be used to generate the image.
 Number of images to generate.
    */
   n?: number;
+
+  /**
+Number of images to generate.
+   */
+  maxImagesPerCall?: number;
 
   /**
 Size of the images to generate. Must have the format `{width}x{height}`. If not provided, the default size will be used.
@@ -85,7 +93,7 @@ record is keyed by the provider-specific metadata key.
 }
 ```
      */
-  providerOptions?: Record<string, Record<string, JSONValue>>;
+  providerOptions?: ProviderOptions;
 
   /**
 Maximum number of retries per embedding model call. Set to 0 to disable retries.
@@ -104,30 +112,25 @@ Additional headers to include in the request.
 Only applicable for HTTP-based providers.
  */
   headers?: Record<string, string>;
-
-  /**
-   * Internal. For test use only. May change without notice.
-   */
-  _internal?: {
-    currentDate?: () => Date;
-  };
 }): Promise<GenerateImageResult> {
   const { retry } = prepareRetries({ maxRetries: maxRetriesArg });
 
   // default to 1 if the model has not specified limits on
   // how many images can be generated in a single call
-  const maxImagesPerCall = model.maxImagesPerCall ?? 1;
+  const maxImagesPerCallWithDefault =
+    maxImagesPerCall ?? (await invokeModelMaxImagesPerCall(model)) ?? 1;
 
   // parallelize calls to the model:
-  const callCount = Math.ceil(n / maxImagesPerCall);
+  const callCount = Math.ceil(n / maxImagesPerCallWithDefault);
   const callImageCounts = Array.from({ length: callCount }, (_, i) => {
     if (i < callCount - 1) {
-      return maxImagesPerCall;
+      return maxImagesPerCallWithDefault;
     }
 
-    const remainder = n % maxImagesPerCall;
-    return remainder === 0 ? maxImagesPerCall : remainder;
+    const remainder = n % maxImagesPerCallWithDefault;
+    return remainder === 0 ? maxImagesPerCallWithDefault : remainder;
   });
+
   const results = await Promise.all(
     callImageCounts.map(async callImageCount =>
       retry(() =>
@@ -146,14 +149,37 @@ Only applicable for HTTP-based providers.
   );
 
   // collect result images, warnings, and response metadata
-  const images: Array<DefaultGeneratedImage> = [];
+  const images: Array<DefaultGeneratedFile> = [];
   const warnings: Array<ImageGenerationWarning> = [];
   const responses: Array<ImageModelResponseMetadata> = [];
+  const providerMetadata: ImageModelV2ProviderMetadata = {};
   for (const result of results) {
     images.push(
-      ...result.images.map(image => new DefaultGeneratedImage({ image })),
+      ...result.images.map(
+        image =>
+          new DefaultGeneratedFile({
+            data: image,
+            mediaType:
+              detectMediaType({
+                data: image,
+                signatures: imageMediaTypeSignatures,
+              }) ?? 'image/png',
+          }),
+      ),
     );
     warnings.push(...result.warnings);
+
+    if (result.providerMetadata) {
+      for (const [providerName, metadata] of Object.entries<{
+        images: unknown;
+      }>(result.providerMetadata)) {
+        providerMetadata[providerName] ??= { images: [] };
+        providerMetadata[providerName].images.push(
+          ...result.providerMetadata[providerName].images,
+        );
+      }
+    }
+
     responses.push(result.response);
   }
 
@@ -161,22 +187,30 @@ Only applicable for HTTP-based providers.
     throw new NoImageGeneratedError({ responses });
   }
 
-  return new DefaultGenerateImageResult({ images, warnings, responses });
+  return new DefaultGenerateImageResult({
+    images,
+    warnings,
+    responses,
+    providerMetadata,
+  });
 }
 
 class DefaultGenerateImageResult implements GenerateImageResult {
-  readonly images: Array<GeneratedImage>;
+  readonly images: Array<GeneratedFile>;
   readonly warnings: Array<ImageGenerationWarning>;
   readonly responses: Array<ImageModelResponseMetadata>;
+  readonly providerMetadata: ImageModelV2ProviderMetadata;
 
   constructor(options: {
-    images: Array<DefaultGeneratedImage>;
+    images: Array<GeneratedFile>;
     warnings: Array<ImageGenerationWarning>;
     responses: Array<ImageModelResponseMetadata>;
+    providerMetadata: ImageModelV2ProviderMetadata;
   }) {
     this.images = options.images;
     this.warnings = options.warnings;
     this.responses = options.responses;
+    this.providerMetadata = options.providerMetadata;
   }
 
   get image() {
@@ -184,30 +218,14 @@ class DefaultGenerateImageResult implements GenerateImageResult {
   }
 }
 
-class DefaultGeneratedImage implements GeneratedImage {
-  private base64Data: string | undefined;
-  private uint8ArrayData: Uint8Array | undefined;
+async function invokeModelMaxImagesPerCall(model: ImageModelV2) {
+  const isFunction = model.maxImagesPerCall instanceof Function;
 
-  constructor({ image }: { image: string | Uint8Array }) {
-    const isUint8Array = image instanceof Uint8Array;
-
-    this.base64Data = isUint8Array ? undefined : image;
-    this.uint8ArrayData = isUint8Array ? image : undefined;
+  if (!isFunction) {
+    return model.maxImagesPerCall;
   }
 
-  // lazy conversion with caching to avoid unnecessary conversion overhead:
-  get base64() {
-    if (this.base64Data == null) {
-      this.base64Data = convertUint8ArrayToBase64(this.uint8ArrayData!);
-    }
-    return this.base64Data;
-  }
-
-  // lazy conversion with caching to avoid unnecessary conversion overhead:
-  get uint8Array() {
-    if (this.uint8ArrayData == null) {
-      this.uint8ArrayData = convertBase64ToUint8Array(this.base64Data!);
-    }
-    return this.uint8ArrayData;
-  }
+  return model.maxImagesPerCall({
+    modelId: model.modelId,
+  });
 }
