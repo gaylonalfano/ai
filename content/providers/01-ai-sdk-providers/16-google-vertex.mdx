@@ -5,7 +5,7 @@ description: Learn how to use the Google Vertex AI provider.
 
 # Google Vertex Provider
 
-The Google Vertex provider for the [AI SDK](https://sdk.vercel.ai/docs) contains language model support for the [Google Vertex AI](https://cloud.google.com/vertex-ai) APIs. This includes support for [Google's Gemini models](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models) and [Anthropic's Claude partner models](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-claude).
+The Google Vertex provider for the [AI SDK](/docs) contains language model support for the [Google Vertex AI](https://cloud.google.com/vertex-ai) APIs. This includes support for [Google's Gemini models](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models) and [Anthropic's Claude partner models](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-claude).
 
 <Note>
   The Google Vertex provider is compatible with both Node.js and Edge runtimes.
@@ -245,14 +245,24 @@ of the [standard call settings](/docs/ai-sdk-core/settings). You can pass them a
 an options argument:
 
 ```ts
-const model = vertex('gemini-1.5-pro', {
-  safetySettings: [
-    { category: 'HARM_CATEGORY_UNSPECIFIED', threshold: 'BLOCK_LOW_AND_ABOVE' },
-  ],
+const model = vertex('gemini-1.5-pro');
+
+await generateText({
+  model,
+  providerOptions: {
+    google: {
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        },
+      ],
+    },
+  },
 });
 ```
 
-The following optional settings are available for Google Vertex models:
+The following optional provider options are available for Google Vertex models:
 
 - **structuredOutputs** _boolean_
 
@@ -313,8 +323,73 @@ const { text } = await generateText({
 });
 ```
 
-Google Vertex language models can also be used in the `streamText` and `streamUI` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+Google Vertex language models can also be used in the `streamText` function
+(see [AI SDK Core](/docs/ai-sdk-core)).
+
+#### Reasoning (Thinking Tokens)
+
+Google Vertex AI, through its support for Gemini models, can also emit "thinking" tokens, representing the model's reasoning process. The AI SDK exposes these as reasoning information.
+
+To enable thinking tokens for compatible Gemini models via Vertex, set `includeThoughts: true` in the `thinkingConfig` provider option. Since the Vertex provider uses the Google provider's underlying language model, these options are passed through `providerOptions.google`:
+
+```ts
+import { vertex } from '@ai-sdk/google-vertex';
+import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google'; // Note: importing from @ai-sdk/google
+import { generateText, streamText } from 'ai';
+
+// For generateText:
+const { text, reasoning, reasoningDetails } = await generateText({
+  model: vertex('gemini-2.0-flash-001'), // Or other supported model via Vertex
+  providerOptions: {
+    google: {
+      // Options are nested under 'google' for Vertex provider
+      thinkingConfig: {
+        includeThoughts: true,
+        // thinkingBudget: 2048, // Optional
+      },
+    } satisfies GoogleGenerativeAIProviderOptions,
+  },
+  prompt: 'Explain quantum computing in simple terms.',
+});
+
+console.log('Reasoning:', reasoning);
+console.log('Reasoning Details:', reasoningDetails);
+console.log('Final Text:', text);
+
+// For streamText:
+const result = streamText({
+  model: vertex('gemini-2.0-flash-001'), // Or other supported model via Vertex
+  providerOptions: {
+    google: {
+      // Options are nested under 'google' for Vertex provider
+      thinkingConfig: {
+        includeThoughts: true,
+        // thinkingBudget: 2048, // Optional
+      },
+    } satisfies GoogleGenerativeAIProviderOptions,
+  },
+  prompt: 'Explain quantum computing in simple terms.',
+});
+
+for await (const part of result.fullStream) {
+  if (part.type === 'reasoning') {
+    process.stdout.write(`THOUGHT: ${part.textDelta}\n`);
+  } else if (part.type === 'text-delta') {
+    process.stdout.write(part.textDelta);
+  }
+}
+```
+
+When `includeThoughts` is true, parts of the API response marked with `thought: true` will be processed as reasoning.
+
+- In `generateText`, these contribute to the `reasoning` (string) and `reasoningDetails` (array) fields.
+- In `streamText`, these are emitted as `reasoning` stream parts.
+
+<Note>
+  Refer to the [Google Vertex AI documentation on
+  "thinking"](https://cloud.google.com/vertex-ai/generative-ai/docs/thinking)
+  for model compatibility and further details.
+</Note>
 
 #### File Inputs
 
@@ -337,7 +412,7 @@ const { text } = await generateText({
         {
           type: 'file',
           data: fs.readFileSync('./data/ai.pdf'),
-          mimeType: 'application/pdf',
+          mediaType: 'application/pdf',
         },
       ],
     },
@@ -365,9 +440,12 @@ import { GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
 const { text, providerMetadata } = await generateText({
-  model: vertex('gemini-1.5-pro', {
-    useSearchGrounding: true,
-  }),
+  model: vertex('gemini-1.5-pro'),
+  providerOptions: {
+    google: {
+      useSearchGrounding: true,
+    },
+  },
   prompt:
     'List the top 5 San Francisco news from the past week.' +
     'You must include the date of each article.',
@@ -443,7 +521,12 @@ import { vertex } from '@ai-sdk/google-vertex';
 import { generateText } from 'ai';
 
 const { sources } = await generateText({
-  model: vertex('gemini-1.5-pro', { useSearchGrounding: true }),
+  model: vertex('gemini-1.5-pro'),
+  providerOptions: {
+    google: {
+      useSearchGrounding: true,
+    },
+  },
   prompt: 'List the top 5 San Francisco news from the past week.',
 });
 ```
@@ -508,9 +591,12 @@ You can disable structured outputs for object generation as a workaround:
 
 ```ts highlight="3,8"
 const result = await generateObject({
-  model: vertex('gemini-1.5-pro', {
-    structuredOutputs: false,
-  }),
+  model: vertex('gemini-1.5-pro'),
+  providerOptions: {
+    google: {
+      structuredOutputs: false,
+    },
+  },
   schema: z.object({
     name: z.string(),
     age: z.number(),
@@ -552,21 +638,32 @@ The following Zod features are known to not work with Google Vertex:
 
 ### Embedding Models
 
-You can create models that call the Google Vertex AI embeddings API using the `.textEmbeddingModel()` factory method:
+You can create models that call the Google Vertex AI embeddings API using the `.textEmbedding()` factory method:
 
 ```ts
-const model = vertex.textEmbeddingModel('text-embedding-004');
+const model = vertex.textEmbedding('text-embedding-004');
 ```
 
 Google Vertex AI embedding models support additional settings. You can pass them as an options argument:
 
 ```ts
-const model = vertex.textEmbeddingModel('text-embedding-004', {
-  outputDimensionality: 512, // optional, number of dimensions for the embedding
+import { vertex } from '@ai-sdk/google-vertex';
+import { embed } from 'ai';
+
+const model = vertex.textEmbedding('text-embedding-004');
+
+const { embedding } = await embed({
+  model,
+  value: 'sunny day at the beach',
+  providerOptions: {
+    google: {
+      outputDimensionality: 512, // optional, number of dimensions for the embedding
+    },
+  },
 });
 ```
 
-The following optional settings are available for Google Vertex AI embedding models:
+The following optional provider options are available for Google Vertex AI embedding models:
 
 - **outputDimensionality**: _number_
 
@@ -593,27 +690,80 @@ import { vertex } from '@ai-sdk/google-vertex';
 import { experimental_generateImage as generateImage } from 'ai';
 
 const { image } = await generateImage({
-  model: vertex.image('imagen-3.0-generate-001'),
+  model: vertex.image('imagen-3.0-generate-002'),
   prompt: 'A futuristic cityscape at sunset',
   aspectRatio: '16:9',
 });
 ```
+
+Further configuration can be done using Google Vertex provider options. You can validate the provider options using the `GoogleVertexImageProviderOptions` type.
+
+```ts
+import { vertex } from '@ai-sdk/google-vertex';
+import { GoogleVertexImageProviderOptions } from '@ai-sdk/google-vertex';
+import { experimental_generateImage as generateImage } from 'ai';
+
+const { image } = await generateImage({
+  model: vertex.image('imagen-3.0-generate-002'),
+  providerOptions: {
+    vertex: {
+      negativePrompt: 'pixelated, blurry, low-quality',
+    } satisfies GoogleVertexImageProviderOptions,
+  },
+  // ...
+});
+```
+
+The following provider options are available:
+
+- **negativePrompt** _string_
+  A description of what to discourage in the generated images.
+
+- **personGeneration** `allow_adult` | `allow_all` | `dont_allow`
+  Whether to allow person generation. Defaults to `allow_adult`.
+
+- **safetySetting** `block_low_and_above` | `block_medium_and_above` | `block_only_high` | `block_none`
+  Whether to block unsafe content. Defaults to `block_medium_and_above`.
+
+- **addWatermark** _boolean_
+  Whether to add an invisible watermark to the generated images. Defaults to `true`.
+
+- **storageUri** _string_
+  Cloud Storage URI to store the generated images.
 
 <Note>
   Imagen models do not support the `size` parameter. Use the `aspectRatio`
   parameter instead.
 </Note>
 
+Additional information about the images can be retrieved using Google Vertex meta data.
+
+```ts
+import { vertex } from '@ai-sdk/google-vertex';
+import { GoogleVertexImageProviderOptions } from '@ai-sdk/google-vertex';
+import { experimental_generateImage as generateImage } from 'ai';
+
+const { image, providerMetadata } = await generateImage({
+  model: vertex.image('imagen-3.0-generate-002'),
+  prompt: 'A futuristic cityscape at sunset',
+  aspectRatio: '16:9',
+});
+
+console.log(
+  `Revised prompt: ${providerMetadata.vertex.images[0].revisedPrompt}`,
+);
+```
+
 #### Model Capabilities
 
 | Model                          | Aspect Ratios             |
 | ------------------------------ | ------------------------- |
-| `imagen-3.0-generate-001`      | 1:1, 3:4, 4:3, 9:16, 16:9 |
+| `imagen-3.0-generate-002`      | 1:1, 3:4, 4:3, 9:16, 16:9 |
 | `imagen-3.0-fast-generate-001` | 1:1, 3:4, 4:3, 9:16, 16:9 |
 
 ## Google Vertex Anthropic Provider Usage
 
-The Google Vertex Anthropic provider for the [AI SDK](https://sdk.vercel.ai/docs) offers support for Anthropic's Claude models through the Google Vertex AI APIs. This section provides details on how to set up and use the Google Vertex Anthropic provider.
+The Google Vertex Anthropic provider for the [AI SDK](/docs) offers support for Anthropic's Claude models through the Google Vertex AI APIs. This section provides details on how to set up and use the Google Vertex Anthropic provider.
 
 ### Provider Instance
 
@@ -808,7 +958,7 @@ const { text } = await generateText({
 ```
 
 Anthropic language models can also be used in the `streamText`, `generateObject`, and `streamObject` functions
-(see [AI SDK Core](/docs/ai-sdk-core) and [AI SDK RSC](/docs/ai-sdk-rsc)).
+(see [AI SDK Core](/docs/ai-sdk-core)).
 
 <Note>
   The Anthropic API returns streaming tool calls all at once after a delay. This
@@ -816,7 +966,7 @@ Anthropic language models can also be used in the `streamText`, `generateObject`
   instead of streaming it incrementally.
 </Note>
 
-The following optional settings are available for Anthropic models:
+The following optional provider options are available for Anthropic models:
 
 - `sendReasoning` _boolean_
 
@@ -824,6 +974,10 @@ The following optional settings are available for Anthropic models:
 
   If you are experiencing issues with the model handling requests involving
   reasoning content, you can set this to `false` to omit them from the request.
+
+- `thinking` _object_
+
+  Optional. See [Reasoning section](#reasoning) for more details.
 
 ### Reasoning
 
@@ -1028,7 +1182,7 @@ const computerTool = vertexAnthropic.tools.computer_20241022({
   experimental_toToolResultContent(result) {
     return typeof result === 'string'
       ? [{ type: 'text', text: result }]
-      : [{ type: 'image', data: result.data, mimeType: 'image/png' }];
+      : [{ type: 'image', data: result.data, mediaType: 'image/png' }];
   },
 });
 ```

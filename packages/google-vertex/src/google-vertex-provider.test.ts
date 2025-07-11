@@ -37,7 +37,6 @@ describe('google-vertex-provider', () => {
 
     expect(GoogleGenerativeAILanguageModel).toHaveBeenCalledWith(
       'test-model-id',
-      {},
       expect.objectContaining({
         provider: 'google.vertex.chat',
         baseURL:
@@ -65,7 +64,6 @@ describe('google-vertex-provider', () => {
 
     expect(GoogleVertexEmbeddingModel).toHaveBeenCalledWith(
       'test-embedding-model',
-      {},
       expect.objectContaining({
         provider: 'google.vertex.embedding',
         headers: expect.any(Object),
@@ -86,7 +84,6 @@ describe('google-vertex-provider', () => {
 
     expect(GoogleGenerativeAILanguageModel).toHaveBeenCalledWith(
       expect.anything(),
-      expect.anything(),
       expect.objectContaining({
         headers: customHeaders,
       }),
@@ -104,7 +101,6 @@ describe('google-vertex-provider', () => {
 
     expect(GoogleGenerativeAILanguageModel).toHaveBeenCalledWith(
       expect.anything(),
-      expect.anything(),
       expect.objectContaining({
         generateId: customGenerateId,
       }),
@@ -116,11 +112,10 @@ describe('google-vertex-provider', () => {
       project: 'test-project',
       location: 'test-location',
     });
-    provider.languageModel('test-model-id', { structuredOutputs: true });
+    provider.languageModel('test-model-id');
 
     expect(GoogleGenerativeAILanguageModel).toHaveBeenCalledWith(
       'test-model-id',
-      { structuredOutputs: true },
       expect.any(Object),
     );
   });
@@ -136,7 +131,6 @@ describe('google-vertex-provider', () => {
 
     expect(GoogleGenerativeAILanguageModel).toHaveBeenCalledWith(
       'test-model-id',
-      {},
       expect.objectContaining({
         baseURL: customBaseURL,
       }),
@@ -148,38 +142,15 @@ describe('google-vertex-provider', () => {
       project: 'test-project',
       location: 'test-location',
     });
-    provider.image('imagen-3.0-generate-001');
+    provider.image('imagen-3.0-generate-002');
 
     expect(GoogleVertexImageModel).toHaveBeenCalledWith(
-      'imagen-3.0-generate-001',
-      {},
+      'imagen-3.0-generate-002',
       expect.objectContaining({
         provider: 'google.vertex.image',
         baseURL:
           'https://test-location-aiplatform.googleapis.com/v1/projects/test-project/locations/test-location/publishers/google',
         headers: expect.any(Object),
-      }),
-    );
-  });
-
-  it('should create an image model with custom maxImagesPerCall', () => {
-    const provider = createVertex({
-      project: 'test-project',
-      location: 'test-location',
-    });
-    const imageSettings = {
-      maxImagesPerCall: 4,
-    };
-    provider.image('imagen-3.0-generate-001', imageSettings);
-
-    expect(GoogleVertexImageModel).toHaveBeenCalledWith(
-      'imagen-3.0-generate-001',
-      imageSettings,
-      expect.objectContaining({
-        provider: 'google.vertex.image',
-        headers: expect.any(Object),
-        baseURL:
-          'https://test-location-aiplatform.googleapis.com/v1/projects/test-project/locations/test-location/publishers/google',
       }),
     );
   });

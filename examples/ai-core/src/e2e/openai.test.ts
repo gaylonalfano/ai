@@ -1,7 +1,8 @@
+import { openai as provider } from '@ai-sdk/openai';
+import { LanguageModelV2 } from '@ai-sdk/provider';
+import { APICallError } from 'ai';
 import 'dotenv/config';
 import { expect } from 'vitest';
-import { openai as provider } from '@ai-sdk/openai';
-import { APICallError, LanguageModelV1 } from 'ai';
 import {
   ModelWithCapabilities,
   createEmbeddingModelWithCapabilities,
@@ -11,7 +12,7 @@ import {
 
 const createChatModel = (
   modelId: string,
-): ModelWithCapabilities<LanguageModelV1> =>
+): ModelWithCapabilities<LanguageModelV2> =>
   createLanguageModelWithCapabilities(provider.chat(modelId));
 
 createFeatureTestSuite({
@@ -19,10 +20,15 @@ createFeatureTestSuite({
   models: {
     invalidModel: provider.chat('no-such-model'),
     languageModels: [
-      //   createChatModel('o1-mini'),
+      createChatModel('gpt-4.1'),
+      createChatModel('gpt-4.1-mini'),
+      createChatModel('gpt-4.1-nano'),
+      createChatModel('o3'),
+      createChatModel('o4-mini'),
+      createChatModel('o1-mini'),
       createChatModel('gpt-4o-mini'),
-      // createChatModel('gpt-3.5-turbo'),
-      // createChatModel('gpt-4-turbo-preview'),
+      createChatModel('gpt-3.5-turbo'),
+      createChatModel('gpt-4-turbo-preview'),
     ],
     embeddingModels: [
       createEmbeddingModelWithCapabilities(

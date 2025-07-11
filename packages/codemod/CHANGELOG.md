@@ -1,5 +1,23 @@
 # @ai-sdk/codemod
 
+## 2.0.0-beta.1
+
+### Patch Changes
+
+- b0446d4: release AI SDK 5.0 codemods package
+
+## 2.0.0-canary.0
+
+### Major Changes
+
+- d5f588f: AI SDK 5
+
+## 1.2.0
+
+### Minor Changes
+
+- 5bc638d: AI SDK 4.2
+
 ## 1.1.0
 
 ### Minor Changes
