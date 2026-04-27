@@ -1,4 +1,5 @@
 import type { Context, ModelMessage, ToolSet } from '@ai-sdk/provider-utils';
+import { validateTypes } from '@ai-sdk/provider-utils';
 import { generateText } from '../generate-text/generate-text';
 import {
   GenerateTextOnStartCallback,
@@ -83,6 +84,18 @@ export class ToolLoopAgent<
     > &
       Prompt
   > {
+    if (
+      this.settings.callOptionsSchema != null &&
+      options.options !== undefined
+    ) {
+      const validatedOptions = await validateTypes({
+        value: options.options,
+        schema: this.settings.callOptionsSchema,
+        context: { field: 'options' },
+      });
+      options = { ...options, options: validatedOptions };
+    }
+
     const {
       experimental_onStart: _settingsOnStart,
       experimental_onStepStart: _settingsOnStepStart,
