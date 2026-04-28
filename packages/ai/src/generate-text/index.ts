@@ -1,5 +1,6 @@
 export type { ContentPart } from './content-part';
-export { filterActiveTools as experimental_filterActiveTools } from './filter-active-tool';
+export type { ActiveTools } from './active-tools';
+export { filterActiveTools as experimental_filterActiveTools } from './filter-active-tools';
 export { generateText } from './generate-text';
 export type {
   GenerateTextEndEvent,
@@ -39,6 +40,7 @@ export type {
 export type { PrepareStepFunction, PrepareStepResult } from './prepare-step';
 export { pruneMessages } from './prune-messages';
 export type { ReasoningFileOutput, ReasoningOutput } from './reasoning-output';
+export type { SensitiveContext } from './sensitive-context';
 export { smoothStream, type ChunkDetector } from './smooth-stream';
 export type { StepResult } from './step-result';
 export {
