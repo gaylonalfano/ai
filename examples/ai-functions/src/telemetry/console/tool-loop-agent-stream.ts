@@ -15,11 +15,26 @@ const agent = new ToolLoopAgent({
       inputSchema: z.object({
         location: z.string().describe('The location to get the weather for'),
       }),
-      execute: async ({ location }) => ({
+      contextSchema: z.object({
+        requestId: z.string(),
+        secretKey: z.string(),
+      }),
+      sensitiveContext: {
+        secretKey: true,
+      },
+      execute: async ({ location }, { context }) => ({
         location,
         temperature: 72,
+        authenticated: context.secretKey.length > 0,
+        requestId: context.requestId,
       }),
     }),
+  },
+  toolsContext: {
+    weather: {
+      requestId: 'weather-request-123',
+      secretKey: 'weather-secret-key',
+    },
   },
   runtimeContext: {
     userId: 'user-123',
@@ -35,7 +50,9 @@ const agent = new ToolLoopAgent({
 });
 
 run(async () => {
-  await agent.generate({
+  const result = await agent.stream({
     prompt: 'What is the weather in San Francisco?',
   });
+
+  await result.consumeStream();
 });
