@@ -7,6 +7,7 @@ import {
 import {
   convertBase64ToUint8Array,
   DataContent,
+  detectMediaType,
   ProviderOptions,
   withUserAgentSuffix,
 } from '@ai-sdk/provider-utils';
@@ -21,10 +22,6 @@ import type { ImageModel } from '../types/image-model';
 import { ImageModelResponseMetadata } from '../types/image-model-response-metadata';
 import { addImageModelUsage, ImageModelUsage } from '../types/usage';
 import { Warning } from '../types/warning';
-import {
-  detectMediaType,
-  imageMediaTypeSignatures,
-} from '../util/detect-media-type';
 import { prepareRetries } from '../util/prepare-retries';
 import { VERSION } from '../version';
 import { GenerateImageResult } from './generate-image-result';
@@ -208,7 +205,7 @@ export async function generateImage({
             mediaType:
               detectMediaType({
                 data: image,
-                signatures: imageMediaTypeSignatures,
+                topLevelType: 'image',
               }) ?? 'image/png',
           }),
       ),
@@ -342,7 +339,7 @@ function toImageModelV4File(dataContent: DataContent): ImageModelV4File {
           dataUrlMediaType ||
           detectMediaType({
             data: uint8Data,
-            signatures: imageMediaTypeSignatures,
+            topLevelType: 'image',
           }) ||
           'image/png',
       };
@@ -356,7 +353,7 @@ function toImageModelV4File(dataContent: DataContent): ImageModelV4File {
     mediaType:
       detectMediaType({
         data: uint8Data,
-        signatures: imageMediaTypeSignatures,
+        topLevelType: 'image',
       }) || 'image/png',
   };
 }

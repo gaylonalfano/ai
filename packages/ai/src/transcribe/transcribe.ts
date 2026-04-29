@@ -1,15 +1,15 @@
 import { JSONObject } from '@ai-sdk/provider';
-import { ProviderOptions, withUserAgentSuffix } from '@ai-sdk/provider-utils';
+import {
+  detectMediaType,
+  ProviderOptions,
+  withUserAgentSuffix,
+} from '@ai-sdk/provider-utils';
 import { NoTranscriptGeneratedError } from '../error/no-transcript-generated-error';
 import { logWarnings } from '../logger/log-warnings';
 import { DataContent } from '../prompt';
 import { convertDataContentToUint8Array } from '../prompt/data-content';
 import { TranscriptionModel } from '../types/transcription-model';
 import { TranscriptionModelResponseMetadata } from '../types/transcription-model-response-metadata';
-import {
-  audioMediaTypeSignatures,
-  detectMediaType,
-} from '../util/detect-media-type';
 import { createDownload } from '../util/download/create-download';
 import { prepareRetries } from '../util/prepare-retries';
 import { TranscriptionResult } from './transcribe-result';
@@ -124,7 +124,7 @@ export async function transcribe({
       mediaType:
         detectMediaType({
           data: audioData,
-          signatures: audioMediaTypeSignatures,
+          topLevelType: 'audio',
         }) ?? 'audio/wav',
     }),
   );
