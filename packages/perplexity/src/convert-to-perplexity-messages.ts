@@ -1,8 +1,8 @@
 import {
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
-import {
+import type {
   PerplexityMessageContent,
   PerplexityPrompt,
 } from './perplexity-language-model-prompt';

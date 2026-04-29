@@ -1,8 +1,8 @@
-import {
+import type {
   SharedV4FileDataData,
   SharedV4FileDataText,
 } from '../../shared/v4/shared-v4-file-data';
-import { SharedV4ProviderOptions } from '../../shared/v4/shared-v4-provider-options';
+import type { SharedV4ProviderOptions } from '../../shared/v4/shared-v4-provider-options';
 
 export interface SkillsV4File {
   /**

@@ -1,10 +1,10 @@
-import {
+import type {
   DataContent,
   ReasoningFilePart,
   ReasoningPart,
 } from '@ai-sdk/provider-utils';
-import { ProviderMetadata } from '../types/provider-metadata';
-import { DefaultGeneratedFile, GeneratedFile } from './generated-file';
+import type { ProviderMetadata } from '../types/provider-metadata';
+import { DefaultGeneratedFile, type GeneratedFile } from './generated-file';
 
 function unwrapReasoningFileData(
   data: ReasoningFilePart['data'],

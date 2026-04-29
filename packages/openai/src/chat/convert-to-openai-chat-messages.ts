@@ -1,9 +1,9 @@
 import {
-  SharedV4Warning,
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type SharedV4Warning,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
-import { OpenAIChatPrompt } from './openai-chat-prompt';
+import type { OpenAIChatPrompt } from './openai-chat-prompt';
 import {
   convertToBase64,
   getTopLevelMediaType,

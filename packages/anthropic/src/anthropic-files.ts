@@ -1,4 +1,4 @@
-import {
+import type {
   FilesV4,
   FilesV4UploadFileCallOptions,
   FilesV4UploadFileResult,
@@ -7,10 +7,10 @@ import {
   combineHeaders,
   convertInlineFileDataToUint8Array,
   createJsonResponseHandler,
-  FetchFunction,
   lazySchema,
   postFormDataToApi,
   zodSchema,
+  type FetchFunction,
 } from '@ai-sdk/provider-utils';
 import { z } from 'zod/v4';
 import { anthropicFailedResponseHandler } from './anthropic-error';

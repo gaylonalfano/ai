@@ -1,17 +1,17 @@
 import {
   InvalidPromptError,
-  LanguageModelV4CallOptions,
-  LanguageModelV4FunctionTool,
-  LanguageModelV4Prompt,
-  LanguageModelV4ProviderTool,
-  LanguageModelV4Usage,
+  type LanguageModelV4CallOptions,
+  type LanguageModelV4FunctionTool,
+  type LanguageModelV4Prompt,
+  type LanguageModelV4ProviderTool,
+  type LanguageModelV4Usage,
 } from '@ai-sdk/provider';
 import {
   dynamicTool,
   jsonSchema,
-  ModelMessage,
   tool,
-  ToolExecuteFunction,
+  type ModelMessage,
+  type ToolExecuteFunction,
 } from '@ai-sdk/provider-utils';
 import { mockId } from '@ai-sdk/provider-utils/test';
 import {
@@ -29,21 +29,21 @@ import { z } from 'zod/v4';
 import * as logWarningsModule from '../logger/log-warnings';
 import { MockLanguageModelV4 } from '../test/mock-language-model-v4';
 import { generateText } from './generate-text';
-import {
+import type {
   GenerateTextOnFinishCallback,
   GenerateTextOnStartCallback,
   GenerateTextOnStepFinishCallback,
   GenerateTextOnStepStartCallback,
 } from './generate-text-events';
-import { GenerateTextResult } from './generate-text-result';
+import type { GenerateTextResult } from './generate-text-result';
 import * as Output from './output';
-import { StepResult } from './step-result';
+import type { StepResult } from './step-result';
 import { isLoopFinished, isStepCount } from './stop-condition';
-import {
+import type {
   ToolExecutionEndEvent,
   ToolExecutionStartEvent,
 } from './tool-execution-events';
-import {
+import type {
   LanguageModelCallEndEvent,
   LanguageModelCallStartEvent,
 } from './language-model-events';

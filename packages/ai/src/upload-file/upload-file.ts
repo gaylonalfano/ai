@@ -1,4 +1,4 @@
-import {
+import type {
   FilesV4,
   FilesV4UploadFileCallOptions,
   ProviderV4,
@@ -7,10 +7,10 @@ import {
   convertBase64ToUint8Array,
   detectMediaType,
 } from '@ai-sdk/provider-utils';
-import { ProviderMetadata } from '../types/provider-metadata';
-import { ProviderReference } from '../types/provider-reference';
-import { Warning } from '../types/warning';
-import { UploadFileResult } from './upload-file-result';
+import type { ProviderMetadata } from '../types/provider-metadata';
+import type { ProviderReference } from '../types/provider-reference';
+import type { Warning } from '../types/warning';
+import type { UploadFileResult } from './upload-file-result';
 
 /**
  * Uploads a file using a files API interface.

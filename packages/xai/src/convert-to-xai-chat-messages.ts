@@ -1,7 +1,7 @@
 import {
-  SharedV4Warning,
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type SharedV4Warning,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
 import {
   convertToBase64,
@@ -9,7 +9,7 @@ import {
   resolveFullMediaType,
   resolveProviderReference,
 } from '@ai-sdk/provider-utils';
-import { XaiChatPrompt } from './xai-chat-prompt';
+import type { XaiChatPrompt } from './xai-chat-prompt';
 
 export function convertToXaiChatMessages(prompt: LanguageModelV4Prompt): {
   messages: XaiChatPrompt;

@@ -6,10 +6,10 @@ import type {
 } from '@ai-sdk/provider';
 import {
   convertBase64ToUint8Array,
+  withUserAgentSuffix,
   type DataContent,
   detectMediaType,
   type ProviderOptions,
-  withUserAgentSuffix,
 } from '@ai-sdk/provider-utils';
 import { NoVideoGeneratedError } from '../error/no-video-generated-error';
 import {

@@ -1,9 +1,9 @@
 import {
-  LanguageModelV4FilePart,
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type LanguageModelV4FilePart,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
-import { MistralPrompt } from './mistral-chat-prompt';
+import type { MistralPrompt } from './mistral-chat-prompt';
 import {
   convertToBase64,
   getTopLevelMediaType,

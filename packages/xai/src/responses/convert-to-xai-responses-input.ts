@@ -1,7 +1,7 @@
 import {
-  SharedV4Warning,
-  LanguageModelV4Message,
   UnsupportedFunctionalityError,
+  type SharedV4Warning,
+  type LanguageModelV4Message,
 } from '@ai-sdk/provider';
 import {
   convertToBase64,
@@ -9,7 +9,7 @@ import {
   resolveFullMediaType,
   resolveProviderReference,
 } from '@ai-sdk/provider-utils';
-import {
+import type {
   XaiResponsesInput,
   XaiResponsesUserMessageContentPart,
 } from './xai-responses-api';

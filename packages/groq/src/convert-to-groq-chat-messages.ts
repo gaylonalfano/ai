@@ -1,8 +1,8 @@
 import {
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
-import { GroqChatPrompt } from './groq-api-types';
+import type { GroqChatPrompt } from './groq-api-types';
 import {
   convertToBase64,
   getTopLevelMediaType,

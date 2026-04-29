@@ -1,4 +1,4 @@
-import {
+import type {
   SharedV4FileDataData,
   SharedV4FileDataUrl,
   SharedV4ProviderMetadata,

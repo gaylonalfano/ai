@@ -10,11 +10,11 @@ import {
   convertInlineFileDataToUint8Array,
   createJsonResponseHandler,
   delay,
-  type FetchFunction,
   lazySchema,
   parseProviderOptions,
   zodSchema,
   getFromApi,
+  type FetchFunction,
 } from '@ai-sdk/provider-utils';
 import { z } from 'zod/v4';
 import { googleFailedResponseHandler } from './google-error';

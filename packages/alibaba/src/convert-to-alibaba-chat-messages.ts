@@ -1,7 +1,7 @@
 import {
+  UnsupportedFunctionalityError,
   type LanguageModelV4FilePart,
   type LanguageModelV4Prompt,
-  UnsupportedFunctionalityError,
 } from '@ai-sdk/provider';
 import {
   convertToBase64,

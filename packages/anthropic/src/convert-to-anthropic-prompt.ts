@@ -1,9 +1,9 @@
 import {
-  SharedV4Warning,
-  LanguageModelV4Message,
-  LanguageModelV4Prompt,
-  SharedV4ProviderMetadata,
   UnsupportedFunctionalityError,
+  type SharedV4Warning,
+  type LanguageModelV4Message,
+  type LanguageModelV4Prompt,
+  type SharedV4ProviderMetadata,
 } from '@ai-sdk/provider';
 import {
   convertBase64ToUint8Array,
@@ -14,15 +14,15 @@ import {
   resolveProviderReference,
   validateTypes,
   isNonNullable,
-  ToolNameMapping,
+  type ToolNameMapping,
 } from '@ai-sdk/provider-utils';
 import {
-  AnthropicAssistantMessage,
-  AnthropicPrompt,
   anthropicReasoningMetadataSchema,
-  AnthropicToolResultContent,
-  AnthropicUserMessage,
-  AnthropicWebFetchToolResultContent,
+  type AnthropicAssistantMessage,
+  type AnthropicPrompt,
+  type AnthropicToolResultContent,
+  type AnthropicUserMessage,
+  type AnthropicWebFetchToolResultContent,
 } from './anthropic-api';
 import { anthropicFilePartProviderOptions } from './anthropic-options';
 import { CacheControlValidator } from './get-cache-control';

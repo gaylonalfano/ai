@@ -1,13 +1,13 @@
-import { SkillsV4, SharedV4Warning } from '@ai-sdk/provider';
+import type { SkillsV4, SharedV4Warning } from '@ai-sdk/provider';
 import {
   combineHeaders,
   convertInlineFileDataToUint8Array,
   createJsonResponseHandler,
-  FetchFunction,
   getFromApi,
   postFormDataToApi,
-  Resolvable,
   resolve,
+  type FetchFunction,
+  type Resolvable,
 } from '@ai-sdk/provider-utils';
 import { anthropicFailedResponseHandler } from '../anthropic-error';
 import {

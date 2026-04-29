@@ -1,10 +1,10 @@
-import {
+import type {
   ProviderV4,
   SkillsV4,
   SkillsV4File,
   SkillsV4UploadSkillCallOptions,
 } from '@ai-sdk/provider';
-import { UploadSkillResult } from './upload-skill-result';
+import type { UploadSkillResult } from './upload-skill-result';
 
 type UploadSkillFile = Omit<SkillsV4File, 'data'> & {
   /**

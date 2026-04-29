@@ -1,6 +1,6 @@
 import {
-  LanguageModelV4Prompt,
   UnsupportedFunctionalityError,
+  type LanguageModelV4Prompt,
 } from '@ai-sdk/provider';
 import {
   convertToBase64,
@@ -8,7 +8,7 @@ import {
   resolveFullMediaType,
   resolveProviderReference,
 } from '@ai-sdk/provider-utils';
-import {
+import type {
   GoogleContent,
   GoogleContentPart,
   GoogleFunctionResponsePart,

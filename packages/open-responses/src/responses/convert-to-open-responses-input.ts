@@ -1,14 +1,14 @@
 import {
-  LanguageModelV4Prompt,
-  SharedV4Warning,
   UnsupportedFunctionalityError,
+  type LanguageModelV4Prompt,
+  type SharedV4Warning,
 } from '@ai-sdk/provider';
 import {
   convertToBase64,
   getTopLevelMediaType,
   resolveFullMediaType,
 } from '@ai-sdk/provider-utils';
-import {
+import type {
   FunctionCallItemParam,
   FunctionCallOutputItemParam,
   InputFileContentParam,

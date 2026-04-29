@@ -1,4 +1,4 @@
-import {
+import type {
   FilesV4,
   FilesV4UploadFileCallOptions,
   FilesV4UploadFileResult,
@@ -7,17 +7,16 @@ import {
   combineHeaders,
   convertInlineFileDataToUint8Array,
   createJsonResponseHandler,
-  FetchFunction,
   parseProviderOptions,
   postFormDataToApi,
+  type FetchFunction,
 } from '@ai-sdk/provider-utils';
 import { openaiFailedResponseHandler } from '../openai-error';
 import { openaiFilesResponseSchema } from './openai-files-api';
 import {
   openaiFilesOptionsSchema,
-  OpenAIFilesOptions,
+  type OpenAIFilesOptions,
 } from './openai-files-options';
-
 interface OpenAIFilesConfig {
   provider: string;
   baseURL: string;

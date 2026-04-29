@@ -1,7 +1,7 @@
 import {
   convertBase64ToUint8Array,
   convertUint8ArrayToBase64,
-  DataContent,
+  type DataContent,
 } from '@ai-sdk/provider-utils';
 import { InvalidDataContentError } from './invalid-data-content-error';
 
