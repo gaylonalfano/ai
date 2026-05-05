@@ -22,21 +22,23 @@ const toolsContext = {
   },
 };
 
+const includeToolsContext = {
+  weather: {
+    city: true,
+  },
+  stocks: {
+    symbol: true,
+  },
+};
+
 const filteredToolsContext = {
   weather: { city: 'Berlin' },
   stocks: { symbol: 'AI' },
 };
 
 const tools = {
-  weather: {
-    sensitiveContext: {
-      apiKey: true,
-      city: false,
-    },
-  },
-  stocks: {
-    sensitiveContext: undefined,
-  },
+  weather: {},
+  stocks: {},
 } as any;
 
 function createStepResult({
@@ -129,8 +131,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onStart = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onStart } },
-      tools,
       includeRuntimeContext: undefined,
+      includeToolsContext,
     });
 
     const event = {
@@ -146,6 +148,23 @@ describe('createRestrictedTelemetryDispatcher', () => {
       }),
     );
     expect(event.toolsContext).toEqual(toolsContext);
+  });
+
+  it('excludes toolsContext properties when no include context is configured', async () => {
+    const onStart = vi.fn();
+    const telemetryDispatcher = createRestrictedTelemetryDispatcher({
+      telemetry: { integrations: { onStart } },
+      includeRuntimeContext: undefined,
+    });
+
+    await telemetryDispatcher.onStart?.({
+      runtimeContext,
+      toolsContext,
+    } as any);
+
+    const telemetryEvent = onStart.mock.calls[0][0];
+
+    expect(telemetryEvent.toolsContext).toEqual({});
   });
 
   it('includes configured runtimeContext for step start events and previous steps', async () => {
@@ -177,8 +196,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onStepStart = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onStepStart } },
-      tools,
       includeRuntimeContext: undefined,
+      includeToolsContext,
     });
     const previousStep = createStepResult({ toolContexts: toolsContext });
 
@@ -218,8 +237,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onStepFinish = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onStepFinish } },
-      tools,
       includeRuntimeContext: undefined,
+      includeToolsContext,
     });
     const step = createStepResult({ toolContexts: toolsContext });
 
@@ -264,8 +283,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onFinish = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onFinish } },
-      tools,
       includeRuntimeContext: undefined,
+      includeToolsContext,
     });
     const step = createStepResult({ toolContexts: toolsContext });
 
@@ -290,8 +309,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onToolExecutionStart = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onToolExecutionStart } },
-      tools,
       includeRuntimeContext,
+      includeToolsContext,
     });
     const event = {
       callId: 'call-1',
@@ -320,8 +339,8 @@ describe('createRestrictedTelemetryDispatcher', () => {
     const onToolExecutionEnd = vi.fn();
     const telemetryDispatcher = createRestrictedTelemetryDispatcher({
       telemetry: { integrations: { onToolExecutionEnd } },
-      tools,
       includeRuntimeContext,
+      includeToolsContext,
     });
     const event = {
       callId: 'call-1',
