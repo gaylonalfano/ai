@@ -831,6 +831,7 @@ describe('generateText', () => {
 
       expect(result.request).toStrictEqual({
         body: 'test body',
+        messages: [{ role: 'user', content: 'prompt' }],
       });
     });
 
@@ -851,7 +852,30 @@ describe('generateText', () => {
 
       expect(result.request).toStrictEqual({
         body: undefined,
+        messages: [{ role: 'user', content: 'prompt' }],
       });
+    });
+
+    it('should contain messages from after prepareStep', async () => {
+      const preparedMessages: Array<ModelMessage> = [
+        { role: 'user', content: 'prepared prompt' },
+      ];
+
+      const result = await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async ({}) => ({
+            ...dummyResponseValues,
+            content: [{ type: 'text', text: 'Hello, world!' }],
+          }),
+        }),
+        prompt: 'prompt',
+        prepareStep: async () => ({
+          messages: preparedMessages,
+        }),
+      });
+
+      expect(result.request.messages).toStrictEqual(preparedMessages);
+      expect(result.steps[0].request.messages).toStrictEqual(preparedMessages);
     });
   });
 
@@ -3036,7 +3060,15 @@ describe('generateText', () => {
           "rawFinishReason": "stop",
           "reasoning": [],
           "reasoningText": undefined,
-          "request": {},
+          "request": {
+            "body": undefined,
+            "messages": [
+              {
+                "content": "irrelevant",
+                "role": "user",
+              },
+            ],
+          },
           "response": {
             "body": undefined,
             "headers": {
@@ -3147,7 +3179,15 @@ describe('generateText', () => {
               },
               "providerMetadata": undefined,
               "rawFinishReason": "stop",
-              "request": {},
+              "request": {
+                "body": undefined,
+                "messages": [
+                  {
+                    "content": "irrelevant",
+                    "role": "user",
+                  },
+                ],
+              },
               "response": {
                 "body": undefined,
                 "headers": {
@@ -3675,7 +3715,15 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": undefined,
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "new input from prepareStep",
+                        "role": "user",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": undefined,
@@ -3753,7 +3801,44 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": "stop",
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "test-input",
+                        "role": "user",
+                      },
+                      {
+                        "content": [
+                          {
+                            "input": {
+                              "value": "value",
+                            },
+                            "providerExecuted": undefined,
+                            "providerOptions": undefined,
+                            "toolCallId": "call-1",
+                            "toolName": "tool1",
+                            "type": "tool-call",
+                          },
+                        ],
+                        "role": "assistant",
+                      },
+                      {
+                        "content": [
+                          {
+                            "output": {
+                              "type": "text",
+                              "value": "result1",
+                            },
+                            "toolCallId": "call-1",
+                            "toolName": "tool1",
+                            "type": "tool-result",
+                          },
+                        ],
+                        "role": "tool",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": {
@@ -3904,7 +3989,15 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": undefined,
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "new input from prepareStep",
+                        "role": "user",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": undefined,
@@ -3982,7 +4075,44 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": "stop",
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "test-input",
+                        "role": "user",
+                      },
+                      {
+                        "content": [
+                          {
+                            "input": {
+                              "value": "value",
+                            },
+                            "providerExecuted": undefined,
+                            "providerOptions": undefined,
+                            "toolCallId": "call-1",
+                            "toolName": "tool1",
+                            "type": "tool-call",
+                          },
+                        ],
+                        "role": "assistant",
+                      },
+                      {
+                        "content": [
+                          {
+                            "output": {
+                              "type": "text",
+                              "value": "result1",
+                            },
+                            "toolCallId": "call-1",
+                            "toolName": "tool1",
+                            "type": "tool-result",
+                          },
+                        ],
+                        "role": "tool",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": {
@@ -4372,7 +4502,15 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": undefined,
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "test-input",
+                        "role": "user",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": undefined,
@@ -4470,7 +4608,15 @@ describe('generateText', () => {
                   },
                   "providerMetadata": undefined,
                   "rawFinishReason": undefined,
-                  "request": {},
+                  "request": {
+                    "body": undefined,
+                    "messages": [
+                      {
+                        "content": "test-input",
+                        "role": "user",
+                      },
+                    ],
+                  },
                   "response": {
                     "body": undefined,
                     "headers": undefined,
@@ -7921,7 +8067,15 @@ describe('generateText', () => {
               },
               "providerMetadata": undefined,
               "rawFinishReason": undefined,
-              "request": {},
+              "request": {
+                "body": undefined,
+                "messages": [
+                  {
+                    "content": "test-input",
+                    "role": "user",
+                  },
+                ],
+              },
               "response": {
                 "body": undefined,
                 "headers": undefined,

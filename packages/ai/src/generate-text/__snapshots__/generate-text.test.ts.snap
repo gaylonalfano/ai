@@ -58,7 +58,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > callb
   "rawFinishReason": "stop",
   "reasoning": [],
   "reasoningText": undefined,
-  "request": {},
+  "request": {
+    "body": undefined,
+    "messages": [
+      {
+        "content": "test-input",
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "input": {
+              "value": "value",
+            },
+            "providerExecuted": undefined,
+            "providerOptions": undefined,
+            "toolCallId": "call-1",
+            "toolName": "tool1",
+            "type": "tool-call",
+          },
+        ],
+        "role": "assistant",
+      },
+      {
+        "content": [
+          {
+            "output": {
+              "type": "text",
+              "value": "result1",
+            },
+            "toolCallId": "call-1",
+            "toolName": "tool1",
+            "type": "tool-result",
+          },
+        ],
+        "role": "tool",
+      },
+    ],
+  },
   "response": {
     "body": undefined,
     "headers": {
@@ -147,7 +184,15 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > callb
       },
       "providerMetadata": undefined,
       "rawFinishReason": undefined,
-      "request": {},
+      "request": {
+        "body": undefined,
+        "messages": [
+          {
+            "content": "test-input",
+            "role": "user",
+          },
+        ],
+      },
       "response": {
         "body": undefined,
         "headers": undefined,
@@ -223,7 +268,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > callb
       },
       "providerMetadata": undefined,
       "rawFinishReason": "stop",
-      "request": {},
+      "request": {
+        "body": undefined,
+        "messages": [
+          {
+            "content": "test-input",
+            "role": "user",
+          },
+          {
+            "content": [
+              {
+                "input": {
+                  "value": "value",
+                },
+                "providerExecuted": undefined,
+                "providerOptions": undefined,
+                "toolCallId": "call-1",
+                "toolName": "tool1",
+                "type": "tool-call",
+              },
+            ],
+            "role": "assistant",
+          },
+          {
+            "content": [
+              {
+                "output": {
+                  "type": "text",
+                  "value": "result1",
+                },
+                "toolCallId": "call-1",
+                "toolName": "tool1",
+                "type": "tool-result",
+              },
+            ],
+            "role": "tool",
+          },
+        ],
+      },
       "response": {
         "body": undefined,
         "headers": {
@@ -372,7 +454,15 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > callb
     },
     "providerMetadata": undefined,
     "rawFinishReason": undefined,
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -448,7 +538,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > callb
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+        {
+          "content": [
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": undefined,
+              "providerOptions": undefined,
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "text",
+                "value": "result1",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": {
@@ -602,7 +729,15 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > resul
     },
     "providerMetadata": undefined,
     "rawFinishReason": undefined,
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -678,7 +813,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result > resul
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+        {
+          "content": [
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": undefined,
+              "providerOptions": undefined,
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "text",
+                "value": "result1",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": {
@@ -788,7 +960,15 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result with pr
     },
     "providerMetadata": undefined,
     "rawFinishReason": undefined,
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "new input from prepareStep",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -866,7 +1046,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result with pr
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+        {
+          "content": [
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": undefined,
+              "providerOptions": undefined,
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "text",
+                "value": "result1",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": {
@@ -1022,7 +1239,15 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result with pr
     },
     "providerMetadata": undefined,
     "rawFinishReason": undefined,
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "new input from prepareStep",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -1100,7 +1325,44 @@ exports[`generateText > options.stopWhen > 2 steps: initial, tool-result with pr
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "test-input",
+          "role": "user",
+        },
+        {
+          "content": [
+            {
+              "input": {
+                "value": "value",
+              },
+              "providerExecuted": undefined,
+              "providerOptions": undefined,
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-call",
+            },
+          ],
+          "role": "assistant",
+        },
+        {
+          "content": [
+            {
+              "output": {
+                "type": "text",
+                "value": "result1",
+              },
+              "toolCallId": "call-1",
+              "toolName": "tool1",
+              "type": "tool-result",
+            },
+          ],
+          "role": "tool",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": {
@@ -1634,7 +1896,15 @@ exports[`generateText > result.steps > should add the reasoning from the model r
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "prompt",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -1734,7 +2004,15 @@ exports[`generateText > result.steps > should contain files 1`] = `
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "prompt",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,
@@ -1832,7 +2110,15 @@ exports[`generateText > result.steps > should contain sources 1`] = `
     },
     "providerMetadata": undefined,
     "rawFinishReason": "stop",
-    "request": {},
+    "request": {
+      "body": undefined,
+      "messages": [
+        {
+          "content": "prompt",
+          "role": "user",
+        },
+      ],
+    },
     "response": {
       "body": undefined,
       "headers": undefined,

@@ -14,6 +14,7 @@ import {
   type Context,
   type IdGenerator,
   type InferToolSetContext,
+  type ModelMessage,
   type ProviderOptions,
   type ToolApprovalResponse,
   type ToolContent,
@@ -23,6 +24,7 @@ import type { ServerResponse } from 'node:http';
 import { NoOutputGeneratedError } from '../error';
 import { logWarnings } from '../logger/log-warnings';
 import { resolveLanguageModel } from '../model/resolve-model';
+import { cloneModelMessages } from '../prompt/clone-model-message';
 import { createToolModelOutput } from '../prompt/create-tool-model-output';
 import type { LanguageModelCallOptions } from '../prompt/language-model-call-options';
 import { prepareLanguageModelCallOptions } from '../prompt/prepare-language-model-call-options';
@@ -876,7 +878,8 @@ class DefaultStreamTextResult<
     let recordedFinishReason: FinishReason | undefined = undefined;
     let recordedRawFinishReason: string | undefined = undefined;
     let recordedTotalUsage: LanguageModelUsage | undefined = undefined;
-    let recordedRequest: LanguageModelRequestMetadata = {};
+    let recordedRequest: Omit<LanguageModelRequestMetadata, 'messages'> = {};
+    let recordedRequestMessages: Array<ModelMessage> = [];
     let recordedWarnings: Array<CallWarning> = [];
     const recordedSteps: StepResult<TOOLS, RUNTIME_CONTEXT>[] = [];
 
@@ -1083,10 +1086,16 @@ class DefaultStreamTextResult<
               rawFinishReason: part.rawFinishReason,
               usage: part.usage,
               warnings: recordedWarnings,
-              request: recordedRequest,
+              request: {
+                ...recordedRequest,
+                messages: cloneModelMessages(recordedRequestMessages),
+              },
               response: {
                 ...part.response,
-                messages: [...recordedResponseMessages, ...stepMessages],
+                messages: cloneModelMessages([
+                  ...recordedResponseMessages,
+                  ...stepMessages,
+                ]),
               },
               providerMetadata: part.providerMetadata,
             });
@@ -1637,10 +1646,13 @@ class DefaultStreamTextResult<
 
           // Conditionally include request.body based on include settings.
           // Large payloads (e.g., base64-encoded images) can cause memory issues.
-          const stepRequest: LanguageModelRequestMetadata =
-            (include?.requestBody ?? true)
-              ? (request ?? {})
-              : { ...request, body: undefined };
+          const stepRequest: LanguageModelRequestMetadata = {
+            ...request,
+            body: (include?.requestBody ?? true) ? request?.body : undefined,
+            messages: cloneModelMessages(stepMessages),
+          };
+          recordedRequestMessages = stepRequest.messages;
+
           const stepToolCalls: TypedToolCall<TOOLS>[] = [];
           const stepToolOutputs: ToolOutput<TOOLS>[] = [];
           const stepToolApprovalResponses: ToolApprovalResponse[] = [];
