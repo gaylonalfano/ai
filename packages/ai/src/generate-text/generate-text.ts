@@ -663,6 +663,8 @@ export async function generateText<
           sandbox,
         });
 
+        const stepSandbox = prepareStepResult?.sandbox ?? sandbox;
+
         const stepModel = resolveLanguageModel(
           prepareStepResult?.model ?? model,
         );
@@ -950,7 +952,7 @@ export async function generateText<
               messages: stepInputMessages,
               abortSignal: mergedAbortSignal,
               timeout,
-              sandbox,
+              sandbox: stepSandbox,
               toolsContext,
               onToolExecutionStart: event =>
                 notify({
