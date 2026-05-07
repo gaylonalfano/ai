@@ -1091,10 +1091,17 @@ export async function generateText<
       },
       {
         inputTokens: undefined,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
         outputTokens: undefined,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
         totalTokens: undefined,
-        reasoningTokens: undefined,
-        cachedInputTokens: undefined,
       } as LanguageModelUsage,
     );
 
