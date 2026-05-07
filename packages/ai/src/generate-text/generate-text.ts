@@ -13,6 +13,7 @@ import {
   type IdGenerator,
   type InferToolSetContext,
   type ProviderOptions,
+  type Sandbox,
   type ToolSet,
 } from '@ai-sdk/provider-utils';
 import { NoOutputGeneratedError } from '../error';
@@ -178,6 +179,7 @@ export type GenerateTextInclude = {
  * @param timeout - An optional timeout in milliseconds. The call will be aborted if it takes longer than the specified timeout.
  * @param headers - Additional HTTP headers to be sent with the request. Only applicable for HTTP-based providers.
  *
+ * @param sandbox - The sandbox environment that is passed through to the tool execution.
  * @param runtimeContext - User-defined runtime context that flows through the entire generation lifecycle.
  * @param experimental_refineToolInput - Optional mapping of tool names to functions that refine parsed tool inputs before tools are executed and before outputs, callbacks, and telemetry are recorded.
  * @param experimental_onStart - Callback invoked when generation begins, before any LLM calls.
@@ -212,6 +214,7 @@ export async function generateText<
   timeout,
   headers,
   stopWhen = isStepCount(1),
+  sandbox,
   output,
   toolApproval,
   experimental_telemetry,
@@ -281,6 +284,11 @@ export async function generateText<
      * functionality that can be fully encapsulated in the provider.
      */
     providerOptions?: ProviderOptions;
+
+    /**
+     * The sandbox environment that is passed through to the tool execution.
+     */
+    sandbox?: Sandbox;
 
     /**
      * Runtime context. Treat runtime context as immutable.
@@ -539,6 +547,7 @@ export async function generateText<
         messages: initialMessages,
         abortSignal: mergedAbortSignal,
         timeout,
+        sandbox,
         toolsContext,
         onToolExecutionStart: event =>
           notify({
@@ -642,6 +651,7 @@ export async function generateText<
           messages: stepInputMessages,
           runtimeContext,
           toolsContext,
+          sandbox,
         });
 
         const stepModel = resolveLanguageModel(
@@ -931,6 +941,7 @@ export async function generateText<
               messages: stepInputMessages,
               abortSignal: mergedAbortSignal,
               timeout,
+              sandbox,
               toolsContext,
               onToolExecutionStart: event =>
                 notify({
@@ -1152,6 +1163,7 @@ async function executeTools<TOOLS extends ToolSet>({
   messages,
   abortSignal,
   timeout,
+  sandbox,
   toolsContext,
   onToolExecutionStart,
   onToolExecutionEnd,
@@ -1163,6 +1175,7 @@ async function executeTools<TOOLS extends ToolSet>({
   messages: ModelMessage[];
   abortSignal: AbortSignal | undefined;
   timeout?: TimeoutConfiguration<TOOLS>;
+  sandbox?: Sandbox;
   toolsContext: InferToolSetContext<TOOLS>;
   onToolExecutionStart?: OnToolExecutionStartCallback<TOOLS>;
   onToolExecutionEnd?: OnToolExecutionEndCallback<TOOLS>;
@@ -1178,6 +1191,7 @@ async function executeTools<TOOLS extends ToolSet>({
           messages,
           abortSignal,
           timeout,
+          sandbox,
           toolsContext,
           onToolExecutionStart,
           onToolExecutionEnd,

@@ -16,6 +16,7 @@ import {
   type InferToolSetContext,
   type ModelMessage,
   type ProviderOptions,
+  type Sandbox,
   type ToolApprovalResponse,
   type ToolContent,
   type ToolSet,
@@ -278,6 +279,7 @@ export type StreamTextOnAbortCallback<
  * @param timeout - An optional timeout in milliseconds. The call will be aborted if it takes longer than the specified timeout.
  * @param headers - Additional HTTP headers to be sent with the request. Only applicable for HTTP-based providers.
  *
+ * @param sandbox - The sandbox environment that is passed through to the tool execution.
  * @param runtimeContext - User-defined runtime context that flows through the entire generation lifecycle.
  * @param experimental_refineToolInput - Optional mapping of tool names to functions that refine parsed tool inputs before tools are executed and before outputs, callbacks, and telemetry are recorded.
  *
@@ -310,6 +312,7 @@ export function streamText<
   timeout,
   headers,
   stopWhen = isStepCount(1),
+  sandbox,
   output,
   toolApproval,
   experimental_telemetry,
@@ -387,6 +390,11 @@ export function streamText<
      * functionality that can be fully encapsulated in the provider.
      */
     providerOptions?: ProviderOptions;
+
+    /**
+     * The sandbox environment that is passed through to the tool execution.
+     */
+    sandbox?: Sandbox;
 
     /**
      * Runtime context. Treat runtime context as immutable.
@@ -612,6 +620,7 @@ export function streamText<
     prompt,
     messages,
     allowSystemInMessages,
+    sandbox,
     tools,
     toolsContext,
     runtimeContext,
@@ -804,6 +813,7 @@ class DefaultStreamTextResult<
     prompt,
     messages,
     allowSystemInMessages,
+    sandbox,
     tools,
     toolChoice,
     transforms,
@@ -851,6 +861,7 @@ class DefaultStreamTextResult<
     prompt: Prompt['prompt'];
     messages: Prompt['messages'];
     allowSystemInMessages: Prompt['allowSystemInMessages'];
+    sandbox: Sandbox | undefined;
     tools: TOOLS | undefined;
     toolChoice: ToolChoice<TOOLS> | undefined;
     transforms: Array<StreamTextTransform<TOOLS>>;
@@ -1447,6 +1458,7 @@ class DefaultStreamTextResult<
                 messages: initialMessages,
                 abortSignal,
                 timeout,
+                sandbox,
                 toolsContext,
                 onToolExecutionStart: filterNullable(
                   onToolExecutionStart,
@@ -1573,6 +1585,7 @@ class DefaultStreamTextResult<
             messages: stepInputMessages,
             toolsContext,
             runtimeContext,
+            sandbox,
           });
 
           const stepModel = resolveLanguageModel(
@@ -1683,6 +1696,7 @@ class DefaultStreamTextResult<
               messages: stepInputMessages,
               abortSignal,
               timeout,
+              sandbox,
               toolsContext,
               toolApproval,
               runtimeContext,
