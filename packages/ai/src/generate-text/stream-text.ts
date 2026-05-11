@@ -1420,6 +1420,7 @@ class DefaultStreamTextResult<
       });
 
       const initialMessages = initialPrompt.messages;
+      let instructionsForNextStep = initialPrompt.instructions;
 
       const { approvedToolApprovals, deniedToolApprovals } =
         collectToolApprovals<TOOLS>({ messages: initialMessages });
@@ -1605,6 +1606,8 @@ class DefaultStreamTextResult<
             model,
             steps: recordedSteps,
             stepNumber: recordedSteps.length,
+            instructions: instructionsForNextStep,
+            initialInstructions: initialPrompt.instructions,
             messages: stepInputMessages,
             initialMessages,
             responseMessages: accumulatedResponseMessages,
@@ -1645,7 +1648,8 @@ class DefaultStreamTextResult<
           const stepInstructions =
             prepareStepResult?.instructions ??
             prepareStepResult?.system ??
-            initialPrompt.instructions;
+            instructionsForNextStep;
+          instructionsForNextStep = stepInstructions;
 
           const stepProviderOptions = mergeObjects(
             providerOptions,

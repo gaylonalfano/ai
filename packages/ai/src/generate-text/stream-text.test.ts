@@ -43,6 +43,7 @@ import {
 import { z } from 'zod/v4';
 import { Output, type LanguageModelCallEndEvent } from '..';
 import * as logWarningsModule from '../logger/log-warnings';
+import type { Instructions } from '../prompt';
 import { MockLanguageModelV4 } from '../test/mock-language-model-v4';
 import { createMockServerResponse } from '../test/mock-server-response';
 import { mockValues } from '../test/mock-values';
@@ -6686,86 +6687,99 @@ describe('streamText', () => {
       expect(stepStartEvent).not.toHaveProperty('functionId');
     });
 
-    it('should pass initialMessages and responseMessages to prepareStep', async () => {
+    it('should pass initialInstructions, initialMessages, and responseMessages to prepareStep', async () => {
       const prepareStepCalls: Array<{
+        instructions: Instructions | undefined;
+        initialInstructions: Instructions | undefined;
         initialMessages: Array<ModelMessage>;
         responseMessages: Array<ModelMessage>;
         messages: Array<ModelMessage>;
       }> = [];
       let responseCount = 0;
 
+      const model = new MockLanguageModelV4({
+        doStream: async () => {
+          switch (responseCount++) {
+            case 0:
+              return {
+                stream: convertArrayToReadableStream([
+                  {
+                    type: 'response-metadata' as const,
+                    id: 'id-0',
+                    modelId: 'mock-model-id',
+                    timestamp: new Date(0),
+                  },
+                  {
+                    type: 'tool-call' as const,
+                    id: 'call-1',
+                    toolCallId: 'call-1',
+                    toolName: 'tool1',
+                    input: '{ "value": "test" }',
+                  },
+                  {
+                    type: 'finish' as const,
+                    finishReason: {
+                      unified: 'tool-calls' as const,
+                      raw: undefined,
+                    },
+                    usage: testUsage,
+                  },
+                ]),
+              };
+            case 1:
+            default:
+              return {
+                stream: convertArrayToReadableStream([
+                  {
+                    type: 'response-metadata' as const,
+                    id: 'id-1',
+                    modelId: 'mock-model-id',
+                    timestamp: new Date(1000),
+                  },
+                  { type: 'text-start' as const, id: '1' },
+                  { type: 'text-delta' as const, id: '1', delta: 'Done.' },
+                  { type: 'text-end' as const, id: '1' },
+                  {
+                    type: 'finish' as const,
+                    finishReason: { unified: 'stop' as const, raw: 'stop' },
+                    usage: testUsage,
+                  },
+                ]),
+              };
+          }
+        },
+      });
+
       const result = streamText({
-        model: new MockLanguageModelV4({
-          doStream: async () => {
-            switch (responseCount++) {
-              case 0:
-                return {
-                  stream: convertArrayToReadableStream([
-                    {
-                      type: 'response-metadata' as const,
-                      id: 'id-0',
-                      modelId: 'mock-model-id',
-                      timestamp: new Date(0),
-                    },
-                    {
-                      type: 'tool-call' as const,
-                      id: 'call-1',
-                      toolCallId: 'call-1',
-                      toolName: 'tool1',
-                      input: '{ "value": "test" }',
-                    },
-                    {
-                      type: 'finish' as const,
-                      finishReason: {
-                        unified: 'tool-calls' as const,
-                        raw: undefined,
-                      },
-                      usage: testUsage,
-                    },
-                  ]),
-                };
-              case 1:
-              default:
-                return {
-                  stream: convertArrayToReadableStream([
-                    {
-                      type: 'response-metadata' as const,
-                      id: 'id-1',
-                      modelId: 'mock-model-id',
-                      timestamp: new Date(1000),
-                    },
-                    { type: 'text-start' as const, id: '1' },
-                    { type: 'text-delta' as const, id: '1', delta: 'Done.' },
-                    { type: 'text-end' as const, id: '1' },
-                    {
-                      type: 'finish' as const,
-                      finishReason: { unified: 'stop' as const, raw: 'stop' },
-                      usage: testUsage,
-                    },
-                  ]),
-                };
-            }
-          },
-        }),
+        model,
         tools: {
           tool1: tool({
             inputSchema: z.object({ value: z.string() }),
             execute: async ({ value }) => `${value}-result`,
           }),
         },
+        instructions: 'test instructions',
         messages: [{ role: 'user', content: 'test-input' }],
         stopWhen: isStepCount(3),
         prepareStep: async ({
+          instructions,
+          initialInstructions,
           initialMessages,
           responseMessages,
           messages,
+          stepNumber,
         }) => {
           prepareStepCalls.push({
+            instructions,
+            initialInstructions,
             initialMessages: [...initialMessages],
             responseMessages: [...responseMessages],
             messages: [...messages],
           });
-          return undefined;
+
+          return stepNumber === 0
+            ? { instructions: 'prepared instructions' }
+            : undefined;
         },
         onError: () => {},
       });
@@ -6773,6 +6787,8 @@ describe('streamText', () => {
       await result.consumeStream();
 
       expect(prepareStepCalls).toHaveLength(2);
+      expect(prepareStepCalls[0].instructions).toBe('test instructions');
+      expect(prepareStepCalls[0].initialInstructions).toBe('test instructions');
       expect(prepareStepCalls[0].initialMessages).toEqual([
         { role: 'user', content: 'test-input' },
       ]);
@@ -6781,6 +6797,8 @@ describe('streamText', () => {
         { role: 'user', content: 'test-input' },
       ]);
 
+      expect(prepareStepCalls[1].instructions).toBe('prepared instructions');
+      expect(prepareStepCalls[1].initialInstructions).toBe('test instructions');
       expect(prepareStepCalls[1].initialMessages).toEqual([
         { role: 'user', content: 'test-input' },
       ]);
@@ -6821,6 +6839,10 @@ describe('streamText', () => {
         ...prepareStepCalls[1].initialMessages,
         ...prepareStepCalls[1].responseMessages,
       ]);
+      expect(model.doStreamCalls[1].prompt[0]).toEqual({
+        role: 'system',
+        content: 'prepared instructions',
+      });
     });
 
     it('should pass updated toolsContext from prepareStep', async () => {

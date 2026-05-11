@@ -29,6 +29,7 @@ import {
 } from 'vitest';
 import { z } from 'zod/v4';
 import * as logWarningsModule from '../logger/log-warnings';
+import type { Instructions } from '../prompt';
 import { MockLanguageModelV4 } from '../test/mock-language-model-v4';
 import { generateText } from './generate-text';
 import type {
@@ -1663,64 +1664,79 @@ describe('generateText', () => {
       });
     });
 
-    it('should pass initialMessages and responseMessages to prepareStep', async () => {
+    it('should pass initialInstructions, initialMessages, and responseMessages to prepareStep', async () => {
       const prepareStepCalls: Array<{
+        instructions: Instructions | undefined;
+        initialInstructions: Instructions | undefined;
         initialMessages: Array<ModelMessage>;
         responseMessages: Array<ModelMessage>;
         messages: Array<ModelMessage>;
       }> = [];
       let responseCount = 0;
 
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          switch (responseCount++) {
+            case 0:
+              return {
+                ...dummyResponseValues,
+                content: [
+                  {
+                    type: 'tool-call',
+                    toolCallType: 'function',
+                    toolCallId: 'call-1',
+                    toolName: 'tool1',
+                    input: '{ "value": "test" }',
+                  },
+                ],
+                finishReason: { unified: 'tool-calls', raw: undefined },
+              };
+            case 1:
+            default:
+              return {
+                ...dummyResponseValues,
+                content: [{ type: 'text', text: 'Done.' }],
+              };
+          }
+        },
+      });
+
       await generateText({
-        model: new MockLanguageModelV4({
-          doGenerate: async () => {
-            switch (responseCount++) {
-              case 0:
-                return {
-                  ...dummyResponseValues,
-                  content: [
-                    {
-                      type: 'tool-call',
-                      toolCallType: 'function',
-                      toolCallId: 'call-1',
-                      toolName: 'tool1',
-                      input: '{ "value": "test" }',
-                    },
-                  ],
-                  finishReason: { unified: 'tool-calls', raw: undefined },
-                };
-              case 1:
-              default:
-                return {
-                  ...dummyResponseValues,
-                  content: [{ type: 'text', text: 'Done.' }],
-                };
-            }
-          },
-        }),
+        model,
         tools: {
           tool1: tool({
             inputSchema: z.object({ value: z.string() }),
             execute: async ({ value }) => `${value}-result`,
           }),
         },
+        instructions: 'test instructions',
         messages: [{ role: 'user', content: 'test-input' }],
         stopWhen: isStepCount(3),
         prepareStep: async ({
+          instructions,
+          initialInstructions,
           initialMessages,
           responseMessages,
           messages,
+          stepNumber,
         }) => {
           prepareStepCalls.push({
+            instructions,
+            initialInstructions,
             initialMessages: [...initialMessages],
             responseMessages: [...responseMessages],
             messages: [...messages],
           });
-          return undefined;
+
+          return stepNumber === 0
+            ? { instructions: 'prepared instructions' }
+            : undefined;
         },
       });
 
       expect(prepareStepCalls).toHaveLength(2);
+      expect(prepareStepCalls[0].instructions).toBe('test instructions');
+      expect(prepareStepCalls[0].initialInstructions).toBe('test instructions');
       expect(prepareStepCalls[0].initialMessages).toEqual([
         { role: 'user', content: 'test-input' },
       ]);
@@ -1729,6 +1745,8 @@ describe('generateText', () => {
         { role: 'user', content: 'test-input' },
       ]);
 
+      expect(prepareStepCalls[1].instructions).toBe('prepared instructions');
+      expect(prepareStepCalls[1].initialInstructions).toBe('test instructions');
       expect(prepareStepCalls[1].initialMessages).toEqual([
         { role: 'user', content: 'test-input' },
       ]);
@@ -1769,6 +1787,10 @@ describe('generateText', () => {
         ...prepareStepCalls[1].initialMessages,
         ...prepareStepCalls[1].responseMessages,
       ]);
+      expect(model.doGenerateCalls[1].prompt[0]).toEqual({
+        role: 'system',
+        content: 'prepared instructions',
+      });
     });
 
     it('should pass updated toolsContext from prepareStep', async () => {

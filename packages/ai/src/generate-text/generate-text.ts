@@ -632,6 +632,7 @@ export async function generateText<
       [];
     const steps: GenerateTextResult<TOOLS, RUNTIME_CONTEXT, OUTPUT>['steps'] =
       [];
+    let instructionsForNextStep = initialPrompt.instructions;
     let messagesForNextStep = [...initialMessages, ...initialResponseMessages];
 
     // Track provider-executed tool calls that support deferred results
@@ -658,6 +659,8 @@ export async function generateText<
           model,
           steps,
           stepNumber: steps.length,
+          instructions: instructionsForNextStep,
+          initialInstructions: initialPrompt.instructions,
           messages: stepInputMessages,
           initialMessages,
           responseMessages: accumulatedResponseMessages,
@@ -675,7 +678,7 @@ export async function generateText<
         const stepInstructions =
           prepareStepResult?.instructions ??
           prepareStepResult?.system ??
-          initialPrompt.instructions;
+          instructionsForNextStep;
 
         const promptMessages = await convertToLanguageModelPrompt({
           prompt: {
@@ -1078,6 +1081,7 @@ export async function generateText<
         });
 
         steps.push(currentStepResult);
+        instructionsForNextStep = stepInstructions;
         messagesForNextStep = [...stepMessages, ...stepResponseMessages];
 
         await notify({
