@@ -4851,6 +4851,144 @@ describe('streamText', () => {
         { type: 'other', message: 'test-warning' },
       ]);
     });
+
+    it('should resolve with warnings from all steps', async () => {
+      let responseCount = 0;
+      const warning0 = { type: 'other' as const, message: 'step 0 warning' };
+      const warning1 = { type: 'other' as const, message: 'step 1 warning' };
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'stream-start',
+                      warnings: [warning0],
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'stream-start',
+                      warnings: [warning1],
+                    },
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'Done.' },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'test-input',
+        stopWhen: isStepCount(3),
+      });
+
+      expect(await result.warnings).toEqual([warning0, warning1]);
+      expect((await result.finalStep).warnings).toEqual([warning1]);
+    });
+
+    it('should send warnings from all steps to onFinish', async () => {
+      let responseCount = 0;
+      let onFinishResult!: Parameters<
+        GenerateTextOnFinishCallback<any, any>
+      >[0];
+      const warning0 = { type: 'other' as const, message: 'step 0 warning' };
+      const warning1 = { type: 'other' as const, message: 'step 1 warning' };
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'stream-start',
+                      warnings: [warning0],
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'stream-start',
+                      warnings: [warning1],
+                    },
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'Done.' },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'test-input',
+        stopWhen: isStepCount(3),
+        onFinish: async event => {
+          onFinishResult = event;
+        },
+      });
+
+      await result.consumeStream();
+
+      expect(onFinishResult.warnings).toEqual([warning0, warning1]);
+      expect(onFinishResult.steps.at(-1)!.warnings).toEqual([warning1]);
+    });
   });
 
   describe('result.usage', () => {
@@ -5379,6 +5517,97 @@ describe('streamText', () => {
 
       expect(await result.sources).toMatchSnapshot();
     });
+
+    it('should contain sources from all steps', async () => {
+      let responseCount = 0;
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'source',
+                      sourceType: 'url',
+                      id: 'source-0',
+                      url: 'https://example.com/0',
+                      title: 'Source 0',
+                    },
+                    {
+                      type: 'tool-call',
+                      id: 'call-1',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'source',
+                      sourceType: 'url',
+                      id: 'source-1',
+                      url: 'https://example.com/1',
+                      title: 'Source 1',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        ...defaultSettings(),
+        stopWhen: isStepCount(3),
+      });
+
+      expect(await result.sources).toEqual([
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-0',
+          url: 'https://example.com/0',
+          title: 'Source 0',
+        },
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-1',
+          url: 'https://example.com/1',
+          title: 'Source 1',
+        },
+      ]);
+
+      expect((await result.finalStep).sources).toEqual([
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-1',
+          url: 'https://example.com/1',
+          title: 'Source 1',
+        },
+      ]);
+    });
   });
 
   describe('result.files', () => {
@@ -5389,6 +5618,244 @@ describe('streamText', () => {
       });
 
       expect(await result.files).toMatchSnapshot();
+    });
+
+    it('should contain files from all steps', async () => {
+      let responseCount = 0;
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      id: 'call-1',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        ...defaultSettings(),
+        stopWhen: isStepCount(3),
+      });
+
+      expect(
+        (await result.files).map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        (await result.finalStep).files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([{ base64: 'c3RlcC0x', mediaType: 'text/plain' }]);
+    });
+
+    it('should send files from all steps to onFinish', async () => {
+      let responseCount = 0;
+      let onFinishResult!: Parameters<
+        GenerateTextOnFinishCallback<any, any>
+      >[0];
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        ...defaultSettings(),
+        stopWhen: isStepCount(3),
+        onFinish: async event => {
+          onFinishResult = event;
+        },
+      });
+
+      await result.consumeStream();
+
+      expect(
+        onFinishResult.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        onFinishResult.steps.at(-1)!.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([{ base64: 'c3RlcC0x', mediaType: 'text/plain' }]);
+    });
+
+    it('should contain file content parts from all steps in result.content', async () => {
+      let responseCount = 0;
+
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      id: 'call-1',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        ...defaultSettings(),
+        stopWhen: isStepCount(3),
+      });
+
+      const content = await result.content;
+      const fileParts = content.filter(part => part.type === 'file');
+
+      expect(
+        fileParts.map(part => ({
+          base64: part.file.base64,
+          mediaType: part.file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        (await result.finalStep).content.filter(part => part.type === 'file'),
+      ).toHaveLength(1);
     });
   });
 
@@ -5928,6 +6395,90 @@ describe('streamText', () => {
         ]
       `);
     });
+
+    it('should resolve with tool calls from all steps', async () => {
+      let responseCount = 0;
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: `{ "value": "value-1" }`,
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-2',
+                      toolName: 'dynamicTool',
+                      input: `{ "value": "value-2" }`,
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 2:
+                return {
+                  stream: convertArrayToReadableStream([
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'done' },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({ value: z.string() }),
+            execute: async ({ value }) => `${value}-result`,
+          }),
+          dynamicTool: dynamicTool({
+            inputSchema: z.object({ value: z.string() }),
+            execute: async () => `value-2-result`,
+          }),
+        },
+        prompt: 'test-input',
+        stopWhen: isStepCount(4),
+      });
+
+      expect(
+        (await result.toolCalls).map(toolCall => toolCall.toolCallId),
+      ).toEqual(['call-1', 'call-2']);
+      expect(
+        (await result.staticToolCalls).map(toolCall => toolCall.toolCallId),
+      ).toEqual(['call-1']);
+      expect(
+        (await result.dynamicToolCalls).map(toolCall => toolCall.toolCallId),
+      ).toEqual(['call-2']);
+      await expect(result.finalStep).resolves.toMatchObject({
+        toolCalls: [],
+      });
+    });
   });
 
   describe('result.toolResults', () => {
@@ -5971,6 +6522,94 @@ describe('streamText', () => {
           },
         ]
       `);
+    });
+
+    it('should resolve with tool results from all steps', async () => {
+      let responseCount = 0;
+      const result = streamText({
+        model: new MockLanguageModelV4({
+          doStream: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: `{ "value": "value-1" }`,
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 1:
+                return {
+                  stream: convertArrayToReadableStream([
+                    {
+                      type: 'tool-call',
+                      toolCallId: 'call-2',
+                      toolName: 'dynamicTool',
+                      input: `{ "value": "value-2" }`,
+                    },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'tool-calls', raw: undefined },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              case 2:
+                return {
+                  stream: convertArrayToReadableStream([
+                    { type: 'text-start', id: '1' },
+                    { type: 'text-delta', id: '1', delta: 'done' },
+                    { type: 'text-end', id: '1' },
+                    {
+                      type: 'finish',
+                      finishReason: { unified: 'stop', raw: 'stop' },
+                      usage: testUsage,
+                    },
+                  ]),
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({ value: z.string() }),
+            execute: async ({ value }) => `${value}-result`,
+          }),
+          dynamicTool: dynamicTool({
+            inputSchema: z.object({ value: z.string() }),
+            execute: async () => `value-2-result`,
+          }),
+        },
+        prompt: 'test-input',
+        stopWhen: isStepCount(4),
+      });
+
+      expect(
+        (await result.toolResults).map(toolResult => toolResult.toolCallId),
+      ).toEqual(['call-1', 'call-2']);
+      expect(
+        (await result.staticToolResults).map(
+          toolResult => toolResult.toolCallId,
+        ),
+      ).toEqual(['call-1']);
+      expect(
+        (await result.dynamicToolResults).map(
+          toolResult => toolResult.toolCallId,
+        ),
+      ).toEqual(['call-2']);
+      await expect(result.finalStep).resolves.toMatchObject({
+        toolResults: [],
+      });
     });
   });
 
@@ -21043,12 +21682,41 @@ describe('streamText', () => {
       });
 
       describe('result.toolCalls and result.toolResults', () => {
-        it('should return empty toolCalls from final step (no tool calls in step 3)', async () => {
-          expect(await result.toolCalls).toMatchInlineSnapshot(`[]`);
+        it('should return toolCalls from all steps', async () => {
+          expect((await result.toolCalls).map(toolCall => toolCall.toolCallId))
+            .toMatchInlineSnapshot(`
+              [
+                "srvtoolu_01MzSrFWsmzBdcoQkGWLyRjK",
+                "toolu_019jKkXz4jAdwHweHBw92CVY",
+                "toolu_015dGLMbwBKv1ZRQr6KdJzeH",
+                "toolu_01YYqBNq5mk1wMtv3PAqY44m",
+                "toolu_018WxjDkQG8h7i63poySGT2x",
+              ]
+            `);
         });
 
-        it('should return deferred tool results from final step', async () => {
-          expect(await result.toolResults).toMatchInlineSnapshot(`
+        it('should return empty finalStep.toolCalls when final step has no tool calls', async () => {
+          expect((await result.finalStep).toolCalls).toMatchInlineSnapshot(
+            `[]`,
+          );
+        });
+
+        it('should return toolResults from all steps', async () => {
+          expect(
+            (await result.toolResults).map(toolResult => toolResult.toolCallId),
+          ).toMatchInlineSnapshot(`
+              [
+                "toolu_019jKkXz4jAdwHweHBw92CVY",
+                "toolu_015dGLMbwBKv1ZRQr6KdJzeH",
+                "toolu_01YYqBNq5mk1wMtv3PAqY44m",
+                "toolu_018WxjDkQG8h7i63poySGT2x",
+                "srvtoolu_01MzSrFWsmzBdcoQkGWLyRjK",
+              ]
+            `);
+        });
+
+        it('should return final step toolResults from finalStep', async () => {
+          expect((await result.finalStep).toolResults).toMatchInlineSnapshot(`
             [
               {
                 "dynamic": undefined,
@@ -21963,6 +22631,17 @@ describe('streamText', () => {
 
         expect(await result.content).toMatchInlineSnapshot(`
           [
+            {
+              "input": {
+                "value": "test",
+              },
+              "providerExecuted": true,
+              "providerMetadata": undefined,
+              "title": undefined,
+              "toolCallId": "call-1",
+              "toolName": "deferred_tool",
+              "type": "tool-call",
+            },
             {
               "dynamic": undefined,
               "error": "ERROR",

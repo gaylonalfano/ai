@@ -1238,6 +1238,8 @@ class DefaultStreamTextResult<
 
           // call onFinish callback:
           const finalStep = recordedSteps[recordedSteps.length - 1];
+          const files = recordedSteps.flatMap(step => step.files);
+          const warnings = recordedSteps.flatMap(step => step.warnings ?? []);
 
           await notify({
             event: {
@@ -1254,7 +1256,7 @@ class DefaultStreamTextResult<
               text: finalStep.text,
               reasoningText: finalStep.reasoningText,
               reasoning: finalStep.reasoning,
-              files: finalStep.files,
+              files,
               sources: finalStep.sources,
               toolCalls: finalStep.toolCalls,
               staticToolCalls: finalStep.staticToolCalls,
@@ -1268,7 +1270,7 @@ class DefaultStreamTextResult<
                 ...initialResponseMessages,
                 ...recordedSteps.flatMap(step => step.response.messages),
               ],
-              warnings: finalStep.warnings,
+              warnings,
               providerMetadata: finalStep.providerMetadata,
               steps: recordedSteps,
             },
@@ -2091,11 +2093,11 @@ class DefaultStreamTextResult<
   }
 
   get content() {
-    return this.finalStep.then(step => step.content);
+    return this.steps.then(steps => steps.flatMap(step => step.content));
   }
 
   get warnings() {
-    return this.finalStep.then(step => step.warnings);
+    return this.steps.then(steps => steps.flatMap(step => step.warnings ?? []));
   }
 
   get providerMetadata() {
@@ -2117,35 +2119,43 @@ class DefaultStreamTextResult<
   }
 
   get sources() {
-    return this.finalStep.then(step => step.sources);
+    return this.steps.then(steps => steps.flatMap(step => step.sources));
   }
 
   get files() {
-    return this.finalStep.then(step => step.files);
+    return this.steps.then(steps => steps.flatMap(step => step.files));
   }
 
   get toolCalls() {
-    return this.finalStep.then(step => step.toolCalls);
+    return this.steps.then(steps => steps.flatMap(step => step.toolCalls));
   }
 
   get staticToolCalls() {
-    return this.finalStep.then(step => step.staticToolCalls);
+    return this.steps.then(steps =>
+      steps.flatMap(step => step.staticToolCalls),
+    );
   }
 
   get dynamicToolCalls() {
-    return this.finalStep.then(step => step.dynamicToolCalls);
+    return this.steps.then(steps =>
+      steps.flatMap(step => step.dynamicToolCalls),
+    );
   }
 
   get toolResults() {
-    return this.finalStep.then(step => step.toolResults);
+    return this.steps.then(steps => steps.flatMap(step => step.toolResults));
   }
 
   get staticToolResults() {
-    return this.finalStep.then(step => step.staticToolResults);
+    return this.steps.then(steps =>
+      steps.flatMap(step => step.staticToolResults),
+    );
   }
 
   get dynamicToolResults() {
-    return this.finalStep.then(step => step.dynamicToolResults);
+    return this.steps.then(steps =>
+      steps.flatMap(step => step.dynamicToolResults),
+    );
   }
 
   get usage() {

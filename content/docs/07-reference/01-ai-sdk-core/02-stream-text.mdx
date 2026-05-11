@@ -1392,8 +1392,7 @@ To see `streamText` in action, check out [these examples](#examples).
             {
               name: 'sources',
               type: 'Array<Source>',
-              description:
-                'Sources that have been used as input to generate the response. For multi-step generation, the sources are accumulated from all steps.',
+              description: 'Sources that have been used in the final step.',
               properties: [
                 {
                   type: 'Source',
@@ -1735,8 +1734,7 @@ To see `streamText` in action, check out [these examples](#examples).
             {
               name: 'sources',
               type: 'Array<Source>',
-              description:
-                'Sources that have been used as input to generate the response. For multi-step generation, the sources are accumulated from all steps.',
+              description: 'Sources that have been used in the final step.',
               properties: [
                 {
                   type: 'Source',
@@ -1777,7 +1775,7 @@ To see `streamText` in action, check out [these examples](#examples).
             {
               name: 'files',
               type: 'Array<GeneratedFile>',
-              description: 'Files that were generated in the final step.',
+              description: 'Files that were generated in all steps.',
               properties: [
                 {
                   type: 'GeneratedFile',
@@ -2357,7 +2355,8 @@ To see `streamText` in action, check out [these examples](#examples).
     {
       name: 'content',
       type: 'Promise<Array<ContentPart<TOOLS>>>',
-      description: 'The content that was generated in the last step. Automatically consumes the stream.',
+      description:
+        'The content that was generated in all steps. Automatically consumes the stream.',
     },
     {
       name: 'finishReason',
@@ -2600,7 +2599,7 @@ To see `streamText` in action, check out [these examples](#examples).
       name: 'files',
       type: 'Promise<Array<GeneratedFile>>',
       description:
-        'Files that were generated in the final step. Automatically consumes the stream.',
+        'Files that were generated in all steps. Automatically consumes the stream.',
       properties: [
         {
           type: 'GeneratedFile',
@@ -2628,33 +2627,33 @@ To see `streamText` in action, check out [these examples](#examples).
       name: 'toolCalls',
       type: 'Promise<TypedToolCall<TOOLS>[]>',
       description:
-        'The tool calls that have been executed. Automatically consumes the stream.',
+        'The tool calls that have been executed in all steps. Automatically consumes the stream.',
     },
     {
       name: 'toolResults',
       type: 'Promise<TypedToolResult<TOOLS>[]>',
       description:
-        'The tool results that have been generated. Resolved when the all tool executions are finished.',
+        'The tool results that have been generated in all steps. Resolved when all tool executions are finished.',
     },
     {
       name: 'staticToolCalls',
       type: 'PromiseLike<Array<StaticToolCall<TOOLS>>>',
-      description: 'The static tool calls that have been executed in the last step.',
+      description: 'The static tool calls that have been executed in all steps.',
     },
     {
       name: 'dynamicToolCalls',
       type: 'PromiseLike<Array<DynamicToolCall>>',
-      description: 'The dynamic tool calls that have been executed in the last step.',
+      description: 'The dynamic tool calls that have been executed in all steps.',
     },
     {
       name: 'staticToolResults',
       type: 'PromiseLike<Array<StaticToolResult<TOOLS>>>',
-      description: 'The static tool results that have been generated in the last step.',
+      description: 'The static tool results that have been generated in all steps.',
     },
     {
       name: 'dynamicToolResults',
       type: 'PromiseLike<Array<DynamicToolResult>>',
-      description: 'The dynamic tool results that have been generated in the last step.',
+      description: 'The dynamic tool results that have been generated in all steps.',
     },
     {
       name: 'request',
@@ -2737,7 +2736,7 @@ To see `streamText` in action, check out [these examples](#examples).
       name: 'warnings',
       type: 'Promise<Warning[] | undefined>',
       description:
-        'Warnings from the model provider (e.g. unsupported settings) for the first step.',
+        'Warnings from the model provider (e.g. unsupported settings) in all steps.',
     },
     {
       name: 'responseMessages',

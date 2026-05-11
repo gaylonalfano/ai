@@ -435,6 +435,112 @@ describe('generateText', () => {
     });
   });
 
+  describe('result.warnings', () => {
+    it('should contain warnings from all steps', async () => {
+      let responseCount = 0;
+      const warning0 = { type: 'other' as const, message: 'step 0 warning' };
+      const warning1 = { type: 'other' as const, message: 'step 1 warning' };
+
+      const result = await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                  warnings: [warning0],
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [{ type: 'text', text: 'Done.' }],
+                  warnings: [warning1],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+      });
+
+      expect(result.warnings).toEqual([warning0, warning1]);
+      expect(result.finalStep.warnings).toEqual([warning1]);
+    });
+
+    it('should send warnings from all steps to onFinish', async () => {
+      let responseCount = 0;
+      let onFinishResult!: Parameters<
+        GenerateTextOnFinishCallback<any, any>
+      >[0];
+      const warning0 = { type: 'other' as const, message: 'step 0 warning' };
+      const warning1 = { type: 'other' as const, message: 'step 1 warning' };
+
+      await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                  warnings: [warning0],
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [{ type: 'text', text: 'Done.' }],
+                  warnings: [warning1],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+        onFinish: async event => {
+          onFinishResult = event;
+        },
+      });
+
+      expect(onFinishResult.warnings).toEqual([warning0, warning1]);
+      expect(onFinishResult.steps.at(-1)!.warnings).toEqual([warning1]);
+    });
+  });
+
   describe('result.sources', () => {
     it('should contain sources', async () => {
       const result = await generateText({
@@ -443,6 +549,90 @@ describe('generateText', () => {
       });
 
       expect(result.sources).toMatchSnapshot();
+    });
+
+    it('should contain sources from all steps', async () => {
+      let responseCount = 0;
+
+      const result = await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'source',
+                      sourceType: 'url',
+                      id: 'source-0',
+                      url: 'https://example.com/0',
+                      title: 'Source 0',
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'source',
+                      sourceType: 'url',
+                      id: 'source-1',
+                      url: 'https://example.com/1',
+                      title: 'Source 1',
+                    },
+                  ],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+      });
+
+      expect(result.sources).toEqual([
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-0',
+          url: 'https://example.com/0',
+          title: 'Source 0',
+        },
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-1',
+          url: 'https://example.com/1',
+          title: 'Source 1',
+        },
+      ]);
+
+      expect(result.finalStep.sources).toEqual([
+        {
+          type: 'source',
+          sourceType: 'url',
+          id: 'source-1',
+          url: 'https://example.com/1',
+          title: 'Source 1',
+        },
+      ]);
     });
   });
 
@@ -454,6 +644,221 @@ describe('generateText', () => {
       });
 
       expect(result.files).toMatchSnapshot();
+    });
+
+    it('should contain files from all steps', async () => {
+      let responseCount = 0;
+
+      const result = await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                  ],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+      });
+
+      expect(
+        result.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        result.finalStep.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([{ base64: 'c3RlcC0x', mediaType: 'text/plain' }]);
+    });
+
+    it('should send files from all steps to onFinish', async () => {
+      let responseCount = 0;
+      let onFinishResult!: Parameters<
+        GenerateTextOnFinishCallback<any, any>
+      >[0];
+
+      await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                  ],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+        onFinish: async event => {
+          onFinishResult = event;
+        },
+      });
+
+      expect(
+        onFinishResult.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        onFinishResult.steps.at(-1)!.files.map(file => ({
+          base64: file.base64,
+          mediaType: file.mediaType,
+        })),
+      ).toEqual([{ base64: 'c3RlcC0x', mediaType: 'text/plain' }]);
+    });
+
+    it('should contain file content parts from all steps in result.content', async () => {
+      let responseCount = 0;
+
+      const result = await generateText({
+        model: new MockLanguageModelV4({
+          doGenerate: async () => {
+            switch (responseCount++) {
+              case 0:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0w' },
+                      mediaType: 'text/plain',
+                    },
+                    {
+                      type: 'tool-call',
+                      toolCallType: 'function',
+                      toolCallId: 'call-1',
+                      toolName: 'tool1',
+                      input: '{}',
+                    },
+                  ],
+                  finishReason: { unified: 'tool-calls', raw: undefined },
+                };
+              case 1:
+                return {
+                  ...dummyResponseValues,
+                  content: [
+                    {
+                      type: 'file',
+                      data: { type: 'data', data: 'c3RlcC0x' },
+                      mediaType: 'text/plain',
+                    },
+                  ],
+                };
+              default:
+                throw new Error(`Unexpected response count: ${responseCount}`);
+            }
+          },
+        }),
+        tools: {
+          tool1: tool({
+            inputSchema: z.object({}),
+            execute: async () => 'result1',
+          }),
+        },
+        prompt: 'prompt',
+        stopWhen: isStepCount(3),
+      });
+
+      const fileParts = result.content.filter(part => part.type === 'file');
+
+      expect(
+        fileParts.map(part => ({
+          base64: part.file.base64,
+          mediaType: part.file.mediaType,
+        })),
+      ).toEqual([
+        { base64: 'c3RlcC0w', mediaType: 'text/plain' },
+        { base64: 'c3RlcC0x', mediaType: 'text/plain' },
+      ]);
+
+      expect(
+        result.finalStep.content.filter(part => part.type === 'file'),
+      ).toHaveLength(1);
     });
   });
 
@@ -3876,12 +4281,24 @@ describe('generateText', () => {
         assert.deepStrictEqual(result.text, 'Hello, world!');
       });
 
-      it('result.toolCalls should return empty tool calls from last step', async () => {
-        assert.deepStrictEqual(result.toolCalls, []);
+      it('result.toolCalls should contain tool calls from all steps', async () => {
+        expect(result.toolCalls.map(toolCall => toolCall.toolCallId)).toEqual([
+          'call-1',
+        ]);
       });
 
-      it('result.toolResults should return empty tool results from last step', async () => {
-        assert.deepStrictEqual(result.toolResults, []);
+      it('result.finalStep.toolCalls should return empty tool calls from last step', async () => {
+        assert.deepStrictEqual(result.finalStep.toolCalls, []);
+      });
+
+      it('result.toolResults should contain tool results from all steps', async () => {
+        expect(
+          result.toolResults.map(toolResult => toolResult.toolCallId),
+        ).toEqual(['call-1']);
+      });
+
+      it('result.finalStep.toolResults should return empty tool results from last step', async () => {
+        assert.deepStrictEqual(result.finalStep.toolResults, []);
       });
 
       it('result.responseMessages should contain response messages from all steps', () => {
@@ -4596,12 +5013,24 @@ describe('generateText', () => {
         expect(result.text).toStrictEqual('Hello, world!');
       });
 
-      it('result.toolCalls should return empty tool calls from last step', async () => {
-        expect(result.toolCalls).toStrictEqual([]);
+      it('result.toolCalls should contain tool calls from all steps', async () => {
+        expect(result.toolCalls.map(toolCall => toolCall.toolCallId)).toEqual([
+          'call-1',
+        ]);
       });
 
-      it('result.toolResults should return empty tool results from last step', async () => {
-        expect(result.toolResults).toStrictEqual([]);
+      it('result.finalStep.toolCalls should return empty tool calls from last step', async () => {
+        expect(result.finalStep.toolCalls).toStrictEqual([]);
+      });
+
+      it('result.toolResults should contain tool results from all steps', async () => {
+        expect(
+          result.toolResults.map(toolResult => toolResult.toolCallId),
+        ).toEqual(['call-1']);
+      });
+
+      it('result.finalStep.toolResults should return empty tool results from last step', async () => {
+        expect(result.finalStep.toolResults).toStrictEqual([]);
       });
 
       it('result.responseMessages should contain response messages from all steps', () => {
@@ -4674,8 +5103,40 @@ describe('generateText', () => {
         expect(onStepFinishResults).toMatchSnapshot();
       });
 
-      it('content should contain content from the last step', () => {
+      it('result.content should contain content from all steps', () => {
         expect(result.content).toMatchInlineSnapshot(`
+        [
+          {
+            "input": {
+              "value": "value",
+            },
+            "providerExecuted": undefined,
+            "providerMetadata": undefined,
+            "title": undefined,
+            "toolCallId": "call-1",
+            "toolName": "tool1",
+            "type": "tool-call",
+          },
+          {
+            "dynamic": false,
+            "input": {
+              "value": "value",
+            },
+            "output": "result1",
+            "toolCallId": "call-1",
+            "toolName": "tool1",
+            "type": "tool-result",
+          },
+          {
+            "text": "Hello, world!",
+            "type": "text",
+          },
+        ]
+      `);
+      });
+
+      it('result.finalStep.content should contain content from the final step', () => {
+        expect(result.finalStep.content).toMatchInlineSnapshot(`
         [
           {
             "text": "Hello, world!",
@@ -7417,13 +7878,46 @@ describe('generateText', () => {
       });
 
       describe('result.toolCalls and result.toolResults', () => {
-        it('should return empty toolCalls from final step (no tool calls in step 5)', () => {
-          expect(result.toolCalls).toMatchInlineSnapshot(`[]`);
+        it('should return toolCalls from all steps', () => {
+          expect(result.toolCalls.map(toolCall => toolCall.toolCallId))
+            .toMatchInlineSnapshot(`
+              [
+                "srvtoolu_01CberhXc9TgYXrCZU8bQoks",
+                "toolu_01PMcE1JBKCeLjn83cgUCvR5",
+                "toolu_01MZf5QJ1EQyd2yGyeLzBxAS",
+                "toolu_01UvVQ2xwA6preZppeajCkYK",
+                "toolu_01BghspNownQFtRgv8jVicr3",
+                "toolu_01T7Upuuv8C71nq7DZ9ZPNQW",
+                "toolu_016Da1tDet9Bf7dAdYTkF5Ar",
+                "toolu_01DiUBRds64sNajVPTZRrDSM",
+                "toolu_01XQa3r3y1Fe8rnkGSncq626",
+              ]
+            `);
         });
 
-        it('should return empty toolResults from final step (deferred result only)', () => {
-          // The final step has a deferred tool result but no client-executed tool results
-          expect(result.toolResults).toMatchInlineSnapshot(`
+        it('should return empty finalStep.toolCalls when final step has no tool calls', () => {
+          expect(result.finalStep.toolCalls).toMatchInlineSnapshot(`[]`);
+        });
+
+        it('should return toolResults from all steps', () => {
+          expect(result.toolResults.map(toolResult => toolResult.toolCallId))
+            .toMatchInlineSnapshot(`
+              [
+                "toolu_01PMcE1JBKCeLjn83cgUCvR5",
+                "toolu_01MZf5QJ1EQyd2yGyeLzBxAS",
+                "toolu_01UvVQ2xwA6preZppeajCkYK",
+                "toolu_01BghspNownQFtRgv8jVicr3",
+                "toolu_01T7Upuuv8C71nq7DZ9ZPNQW",
+                "toolu_016Da1tDet9Bf7dAdYTkF5Ar",
+                "toolu_01DiUBRds64sNajVPTZRrDSM",
+                "toolu_01XQa3r3y1Fe8rnkGSncq626",
+                "srvtoolu_01CberhXc9TgYXrCZU8bQoks",
+              ]
+            `);
+        });
+
+        it('should return final step toolResults from finalStep', () => {
+          expect(result.finalStep.toolResults).toMatchInlineSnapshot(`
             [
               {
                 "dynamic": undefined,

@@ -1504,7 +1504,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'sources',
               type: 'Array<Source>',
-              description: 'The sources that were used to generate the text.',
+              description: 'The sources that were used in this step.',
             },
             {
               name: 'toolCalls',
@@ -1897,7 +1897,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'content',
               type: 'Array<ContentPart<TOOLS>>',
-              description: 'The content that was generated in the final step.',
+              description: 'The content that was generated in all steps.',
             },
             {
               name: 'providerMetadata',
@@ -1964,8 +1964,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'sources',
               type: 'Array<Source>',
-              description:
-                'Sources that have been used as input to generate the response. For multi-step generation, the sources are accumulated from all steps.',
+              description: 'Sources that have been used in the final step.',
               properties: [
                 {
                   type: 'Source',
@@ -2006,7 +2005,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'files',
               type: 'Array<GeneratedFile>',
-              description: 'Files that were generated in the final step.',
+              description: 'Files that were generated in all steps.',
               properties: [
                 {
                   type: 'GeneratedFile',
@@ -2069,7 +2068,7 @@ To see `generateText` in action, check out [these examples](#examples).
               name: 'warnings',
               type: 'CallWarning[] | undefined',
               description:
-                'Warnings from the model provider (e.g. unsupported settings).',
+                'Warnings from the model provider (e.g. unsupported settings) in all steps.',
             },
             {
               name: 'request',
@@ -2192,7 +2191,7 @@ To see `generateText` in action, check out [these examples](#examples).
     {
       name: 'content',
       type: 'Array<ContentPart<TOOLS>>',
-      description: 'The content that was generated in the last step.',
+      description: 'The content that was generated in all steps.',
     },
     {
       name: 'text',
@@ -2299,7 +2298,7 @@ To see `generateText` in action, check out [these examples](#examples).
     {
       name: 'files',
       type: 'Array<GeneratedFile>',
-      description: 'Files that were generated in the final step.',
+      description: 'Files that were generated in all steps.',
       properties: [
         {
           type: 'GeneratedFile',
@@ -2326,36 +2325,36 @@ To see `generateText` in action, check out [these examples](#examples).
     {
       name: 'toolCalls',
       type: 'ToolCallArray<TOOLS>',
-      description: 'The tool calls that were made in the last step.',
+      description: 'The tool calls that were made in all steps.',
     },
     {
       name: 'toolResults',
       type: 'ToolResultArray<TOOLS>',
-      description: 'The results of the tool calls from the last step.',
+      description: 'The results of the tool calls from all steps.',
     },
     {
       name: 'staticToolCalls',
       type: 'Array<StaticToolCall<TOOLS>>',
       description:
-        'The static tool calls that have been executed in the last step.',
+        'The static tool calls that have been executed in all steps.',
     },
     {
       name: 'dynamicToolCalls',
       type: 'Array<DynamicToolCall>',
       description:
-        'The dynamic tool calls that have been executed in the last step.',
+        'The dynamic tool calls that have been executed in all steps.',
     },
     {
       name: 'staticToolResults',
       type: 'Array<StaticToolResult<TOOLS>>',
       description:
-        'The static tool results that have been generated in the last step.',
+        'The static tool results that have been generated in all steps.',
     },
     {
       name: 'dynamicToolResults',
       type: 'Array<DynamicToolResult>',
       description:
-        'The dynamic tool results that have been generated in the last step.',
+        'The dynamic tool results that have been generated in all steps.',
     },
     {
       name: 'finishReason',
@@ -2569,7 +2568,7 @@ To see `generateText` in action, check out [these examples](#examples).
       name: 'warnings',
       type: 'Warning[] | undefined',
       description:
-        'Warnings from the model provider (e.g. unsupported settings).',
+        'Warnings from the model provider (e.g. unsupported settings) in all steps.',
     },
     {
       name: 'responseMessages',
@@ -2625,7 +2624,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'content',
               type: 'Array<ContentPart<TOOLS>>',
-              description: 'The content that was generated in the last step.',
+              description: 'The content that was generated in the final step.',
             },
             {
               name: 'text',
@@ -2713,7 +2712,7 @@ To see `generateText` in action, check out [these examples](#examples).
             {
               name: 'sources',
               type: 'Array<Source>',
-              description: 'The sources that were used to generate the text.',
+              description: 'Sources that have been used in this step.',
               properties: [
                 {
                   type: 'Source',

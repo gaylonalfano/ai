@@ -1127,6 +1127,9 @@ export async function generateText<
       } as LanguageModelUsage,
     );
 
+    const files = steps.flatMap(step => step.files);
+    const warnings = steps.flatMap(step => step.warnings ?? []);
+
     const onFinishEvent = {
       callId,
       stepNumber: lastStep.stepNumber,
@@ -1139,7 +1142,7 @@ export async function generateText<
       text: lastStep.text,
       reasoningText: lastStep.reasoningText,
       reasoning: lastStep.reasoning,
-      files: lastStep.files,
+      files,
       sources: lastStep.sources,
       toolCalls: lastStep.toolCalls,
       staticToolCalls: lastStep.staticToolCalls,
@@ -1153,7 +1156,7 @@ export async function generateText<
         ...initialResponseMessages,
         ...steps.flatMap(step => step.response.messages),
       ],
-      warnings: lastStep.warnings,
+      warnings,
       providerMetadata: lastStep.providerMetadata,
       steps,
       totalUsage,
@@ -1268,7 +1271,7 @@ class DefaultGenerateTextResult<
   }
 
   get content() {
-    return this.finalStep.content;
+    return this.steps.flatMap(step => step.content);
   }
 
   get text() {
@@ -1276,7 +1279,7 @@ class DefaultGenerateTextResult<
   }
 
   get files() {
-    return this.finalStep.files;
+    return this.steps.flatMap(step => step.files);
   }
 
   get reasoningText() {
@@ -1288,31 +1291,31 @@ class DefaultGenerateTextResult<
   }
 
   get toolCalls() {
-    return this.finalStep.toolCalls;
+    return this.steps.flatMap(step => step.toolCalls);
   }
 
   get staticToolCalls() {
-    return this.finalStep.staticToolCalls;
+    return this.steps.flatMap(step => step.staticToolCalls);
   }
 
   get dynamicToolCalls() {
-    return this.finalStep.dynamicToolCalls;
+    return this.steps.flatMap(step => step.dynamicToolCalls);
   }
 
   get toolResults() {
-    return this.finalStep.toolResults;
+    return this.steps.flatMap(step => step.toolResults);
   }
 
   get staticToolResults() {
-    return this.finalStep.staticToolResults;
+    return this.steps.flatMap(step => step.staticToolResults);
   }
 
   get dynamicToolResults() {
-    return this.finalStep.dynamicToolResults;
+    return this.steps.flatMap(step => step.dynamicToolResults);
   }
 
   get sources() {
-    return this.finalStep.sources;
+    return this.steps.flatMap(step => step.sources);
   }
 
   get finishReason() {
@@ -1324,7 +1327,7 @@ class DefaultGenerateTextResult<
   }
 
   get warnings() {
-    return this.finalStep.warnings;
+    return this.steps.flatMap(step => step.warnings ?? []);
   }
 
   get providerMetadata() {
