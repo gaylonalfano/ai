@@ -1171,26 +1171,17 @@ describe('LegacyOpenTelemetry', () => {
         makeOnStartEvent({ operationId: 'ai.streamText' }),
       );
       otelIntegration.onStepStart!(makeStepStartEvent());
-
-      otelIntegration.onChunk!(
-        makeChunkEvent({
-          type: 'ai.stream.firstChunk',
-          callId,
-          stepNumber: 0,
-          attributes: { 'ai.stream.msToFirstChunk': 10 },
+      otelIntegration.onStepFinish!(
+        makeStepFinishEvent({
+          performance: {
+            tokensPerSecond: 20,
+            stepTimeMs: 1000,
+            responseTimeMs: 1000,
+            toolExecutionMs: {},
+            timeToFirstTokenMs: 10,
+          },
         }),
       );
-
-      otelIntegration.onChunk!(
-        makeChunkEvent({
-          type: 'ai.stream.finish',
-          callId,
-          stepNumber: 0,
-          attributes: { 'ai.stream.msToFinish': 200 },
-        }),
-      );
-
-      otelIntegration.onStepFinish!(makeStepFinishEvent());
       otelIntegration.onEnd!(makeFinishEvent());
 
       expect(tracer.spans).toHaveLength(2);
@@ -1817,11 +1808,11 @@ function createStreamTestModel({
 }
 
 function mockTokenStreamTextTelemetryNow() {
-  return mockValues(0, 0, 100, 100, 500);
+  return mockValues(0, 0, 100, 500, 500);
 }
 
 function mockToolOnlyStreamTextTelemetryNow() {
-  return mockValues(0, 0, 100, 500);
+  return mockValues(0, 0, 500, 500);
 }
 
 function mockTwoStepStreamTextTelemetryNow() {
@@ -1829,11 +1820,10 @@ function mockTwoStepStreamTextTelemetryNow() {
     0,
     0,
     100,
-    100,
+    500,
     500,
     600,
     600,
-    1000,
     1000,
     1000,
     1400,
